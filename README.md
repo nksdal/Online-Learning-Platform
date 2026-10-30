@@ -60,16 +60,24 @@ Dependencies point inward. See [docs/architecture.md](docs/architecture.md).
 git clone https://github.com/<your-account>/OnlineLearningPlatform.git
 cd OnlineLearningPlatform
 dotnet --version     # should print 10.0.401
+dotnet tool restore  # installs the pinned dotnet-ef tool
 dotnet build
+dotnet test
 ```
 
-Running the API, the database and Mailpit locally via Docker Compose is *(planned for Week 1, Step 5)*.
+Create or update the database (uses `ConnectionStrings:DefaultConnection`; see [docs/database.md](docs/database.md)):
+
+```powershell
+dotnet ef database update --project src/OnlineLearningPlatform.Infrastructure --startup-project src/OnlineLearningPlatform.Api
+```
+
+Running the API, the database and Mailpit together via Docker Compose is *(planned for Week 1, Step 5e)*.
 
 ## Documentation
 
 - [Architecture and design decisions](docs/architecture.md)
 - [Project checklist](docs/checklist.md)
-- Database design and ER diagram *(Week 1, Step 5)*
+- [Database design and ER diagram](docs/database.md)
 - API endpoint inventory *(Week 1, Step 5)*
 
 ## Security

@@ -6,24 +6,23 @@ Only tick an item after you have seen the real result (build output, test run, C
 ## Environment (confirmed on the developer machine)
 
 - [x] .NET SDKs 10.0.203 and 10.0.401 installed
-- [x] Visual Studio 2026 18.10.3
+- [x] Visual Studio Community 2026 18.10.3 with the ASP.NET and web development workload
 - [x] Git 2.50.1
 - [x] Node 24.11.1 / npm 11.6.2
 - [x] WSL2 and Docker Desktop (`hello-world` ran)
 - [x] SQL Server 2025 Express reachable at `.\SQLEXPRESS`
-- [ ] Visual Studio "ASP.NET and web development" workload confirmed (optional, only needed to run the API from Visual Studio)
 
 ## Week 1 - Backend foundation
 
-- [ ] Step 2: private GitHub repo created, cloned, `main` is the default branch
-- [ ] Step 3: `scaffold.ps1` run, `dotnet build` succeeds
-- [ ] Step 4: README, docs and configuration files committed (initial commit on `main`)
-- [ ] Step 5a: Domain (`ApplicationUser`, `RefreshToken`, `AuditLog`)
-- [ ] Step 5b: Application (interfaces, DTOs, validators)
-- [ ] Step 5c: Infrastructure (EF Core, Identity, first migration)
-- [ ] Step 5d: Api (Serilog, FluentValidation, Problem Details, Swagger with JWT, health checks)
+- [x] Step 3: scaffold script run, `dotnet build` succeeded, SDK pinned to 10.0.401
+- [ ] Step 2/4: GitHub remote configured, `main` pushed, feature branch pushed (confirm with `git status -sb`)
+- [ ] Step 5a: Domain (`ApplicationUser`, `RefreshToken`, `AuditLog`) - files written, not yet built
+- [ ] Step 5b: Application (`IApplicationDbContext`) - files written, not yet built
+- [ ] Step 5c: Infrastructure (DbContext, Identity, first migration) - applied and verified against SQL Server
+- [ ] Step 5c: unit tests pass (`RefreshTokenTests`, `LayerDependencyTests`)
+- [ ] Step 5d: Api pipeline (Serilog, FluentValidation, Problem Details, Swagger with JWT, health checks)
 - [ ] Step 5e: Docker Compose (SQL Server, Mailpit, API) with health checks
-- [ ] `docs/database.md` with ER diagram, `docs/endpoints.md` with endpoint inventory
+- [ ] `docs/endpoints.md` endpoint inventory
 - [ ] `.env.example` with placeholders only
 - [ ] First CI run green (confirmed on GitHub, not assumed)
 
@@ -47,6 +46,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 
 - [ ] Unit and integration test coverage of the required areas
 - [ ] Security and authorization review
+- [ ] Persist Data Protection keys (Identity tokens survive restarts and redeploys)
 - [ ] Production Docker configuration, backup strategy, deployment documentation
 - [ ] DigitalOcean deployment (only after explicit approval)
 
