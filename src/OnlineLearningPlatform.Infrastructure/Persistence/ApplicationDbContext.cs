@@ -35,6 +35,10 @@ public sealed class ApplicationDbContext
 
     public DbSet<LessonProgress> LessonProgress => Set<LessonProgress>();
 
+    public DbSet<CourseAssignment> Assignments => Set<CourseAssignment>();
+
+    public DbSet<AssignmentSubmission> AssignmentSubmissions => Set<AssignmentSubmission>();
+
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();

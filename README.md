@@ -2,7 +2,7 @@
 
 A secure, production-style online learning platform: students discover courses, enroll, work through lessons and assignments, and track progress; teachers create and grade; administrators moderate.
 
-> **Status: Backend foundation, catalog, course publishing, lessons, enrollment, and progress tracking implemented. Assignments and grading are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
+> **Status: Backend foundation, catalog, learning, progress tracking, assignments, submissions, and grading implemented. Discussions and streaks are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
 
 ## Roles
 
@@ -142,6 +142,8 @@ Teachers create courses as drafts with `POST /api/teacher/courses`, edit their o
 Students enroll in a published course with `POST /api/courses/{courseId}/enrollments`; duplicate enrollments return `409`. Their enrollments, including archived courses, are listed by `GET /api/users/me/enrollments`. Enrolled students can read lessons at `GET /api/courses/{courseId}/lessons`; access continues after the course is archived. Teachers manage lessons through `/api/teacher/courses/{courseId}/lessons` and `/api/teacher/lessons/{lessonId}`. Admins can read any course's lessons through `/api/admin/courses/{courseId}/lessons`.
 
 Enrolled students can mark a lesson complete with `PUT /api/lessons/{lessonId}/progress` and reset it with `DELETE` on the same route. `GET /api/courses/{courseId}/progress/me` shows completed lessons, total lessons, and the percentage complete. Progress remains visible after archive, but cannot be changed once the course is archived.
+
+Teachers create text assignments with `POST /api/teacher/courses/{courseId}/assignments`. The optional `dueAtUtc` must be UTC (end with `Z`); `maxAttempts` defaults to 1 and `maxScore` to 100. Enrolled students submit each attempt separately with `POST /api/assignments/{assignmentId}/submissions`. Teachers inspect attempts with `GET /api/teacher/assignments/{assignmentId}/submissions` and grade one with `PUT /api/submissions/{submissionId}/grade`, sending `{ "score": 8.5, "feedback": "Good work." }`. Students see their attempts and feedback through `GET /api/assignments/{assignmentId}/submissions/me`.
 
 For a public deployment, replace Mailpit's SMTP settings with your email provider's host, port, TLS mode, username, and password. Set `Email__FromAddress` to a sender address on a verified sending domain, and set `Email__VerificationPageUrl` and `Email__PasswordResetPageUrl` to the public frontend routes. Store SMTP credentials in the deployment's secret store; do not commit them to the repository. Keep Mailpit for local development.
 

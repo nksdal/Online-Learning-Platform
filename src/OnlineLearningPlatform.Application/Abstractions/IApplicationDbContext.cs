@@ -23,6 +23,10 @@ public interface IApplicationDbContext
 
     DbSet<LessonProgress> LessonProgress { get; }
 
+    DbSet<CourseAssignment> Assignments { get; }
+
+    DbSet<AssignmentSubmission> AssignmentSubmissions { get; }
+
     DbSet<ApplicationUser> Users { get; }
 
     DbSet<RefreshToken> RefreshTokens { get; }

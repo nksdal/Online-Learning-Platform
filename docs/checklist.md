@@ -46,7 +46,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 ## Week 3 - Learning workflows and features
 
 - [x] Lesson completion and course progress: complete/reset lesson, per-course summary; `AddLessonProgress` applied to Compose SQL Server; 65 tests pass (44 integration, 21 unit)
-- [ ] Assignments, submissions, grading
+- [x] Text assignments, deadline enforcement, attempt history (`MaxAttempts` defaults to 1), and teacher grading; `AddAssignmentsAndGrading` applied to Compose SQL Server; 66 tests pass (45 integration, 21 unit)
 - [ ] Discussions, learning streaks, recommendations, deadline reminders
 - [ ] Student, teacher and admin interfaces
 - [ ] GitHub Actions CI (build, test, Docker image build)

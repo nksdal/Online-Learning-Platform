@@ -170,6 +170,63 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.AssignmentSubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AssignmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("GradedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("GradedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("Score")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
+
+                    b.Property<Guid>("StudentUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("SubmittedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GradedByUserId");
+
+                    b.HasIndex("StudentUserId");
+
+                    b.HasIndex("AssignmentId", "SubmittedAtUtc");
+
+                    b.HasIndex("AssignmentId", "StudentUserId", "AttemptNumber")
+                        .IsUnique();
+
+                    b.ToTable("AssignmentSubmissions", (string)null);
+                });
+
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -257,6 +314,48 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.HasIndex("Status", "CategoryId");
 
                     b.ToTable("Courses", (string)null);
+                });
+
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.CourseAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DueAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Instructions")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MaxScore")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CourseId", "DueAtUtc");
+
+                    b.ToTable("Assignments", (string)null);
                 });
 
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.Enrollment", b =>
@@ -606,6 +705,26 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.AssignmentSubmission", b =>
+                {
+                    b.HasOne("OnlineLearningPlatform.Domain.Catalog.CourseAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OnlineLearningPlatform.Domain.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("GradedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("OnlineLearningPlatform.Domain.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("StudentUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.Course", b =>
                 {
                     b.HasOne("OnlineLearningPlatform.Domain.Catalog.Category", null)
@@ -618,6 +737,15 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("InstructorUserId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.CourseAssignment", b =>
+                {
+                    b.HasOne("OnlineLearningPlatform.Domain.Catalog.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

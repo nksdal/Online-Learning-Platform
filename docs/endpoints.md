@@ -57,6 +57,16 @@ This document distinguishes endpoints that are implemented now from routes plann
 | `GET` | `/api/courses/{courseId}/progress/me` | Enrolled Student bearer JWT | Returns lesson completion states and overall course completion percentage. Archived courses return the saved progress read-only. |
 | `PUT` | `/api/lessons/{lessonId}/progress` | Enrolled Student bearer JWT | Marks a lesson complete. Repeating the request is safe and does not create duplicate progress. |
 | `DELETE` | `/api/lessons/{lessonId}/progress` | Enrolled Student bearer JWT | Resets a lesson to incomplete. Returns 204 when successful or already incomplete. Progress cannot change after archive. |
+| `GET` | `/api/courses/{courseId}/assignments` | Enrolled Student bearer JWT | Lists assignments for a Published or Archived course. |
+| `GET` | `/api/teacher/courses/{courseId}/assignments` | Owning Teacher bearer JWT | Lists assignments for the teacher's course. |
+| `POST` | `/api/teacher/courses/{courseId}/assignments` | Owning Teacher bearer JWT | Creates a text assignment with optional UTC deadline, maximum attempts (default 1), and maximum score (default 100). |
+| `PUT` | `/api/teacher/assignments/{assignmentId}` | Owning Teacher bearer JWT | Updates assignment instructions, deadline, attempt limit, and max score. |
+| `POST` | `/api/assignments/{assignmentId}/submissions` | Enrolled Student bearer JWT | Adds a text submission attempt while the course is Published and before the deadline. Returns 409 when all allowed attempts are used. |
+| `GET` | `/api/assignments/{assignmentId}/submissions/me` | Enrolled Student bearer JWT | Lists the current student's attempt history and any grades/feedback. |
+| `GET` | `/api/teacher/assignments/{assignmentId}/submissions` | Owning Teacher bearer JWT | Lists every student's attempt history for that assignment. |
+| `PUT` | `/api/submissions/{submissionId}/grade` | Owning Teacher bearer JWT | Grades a submission with a score from zero through the assignment's maximum and optional feedback. |
+| `GET` | `/api/admin/courses/{courseId}/assignments` | Admin bearer JWT | Lists assignments for any course. |
+| `GET` | `/api/admin/assignments/{assignmentId}/submissions` | Admin bearer JWT | Reads all submissions for an assignment. |
 
 Unknown paths return `404` using `application/problem+json`. The health routes are anonymous so Docker or an orchestrator can probe the service without credentials.
 
@@ -68,7 +78,6 @@ These are project requirements, not implemented endpoints yet. Their detailed co
 |---|---|
 | Lessons and materials | `/api/lessons/{lessonId}/materials`, `/api/materials/{materialId}` |
 | Enrollment and progress | Streak history and daily learning summaries (future extension) |
-| Assignments and grading | `/api/courses/{courseId}/assignments`, `/api/assignments/{assignmentId}/submissions`, `/api/submissions/{submissionId}/grade` |
 | Reviews and administration | `/api/courses/{courseId}/reviews`, `/api/admin/dashboard/statistics` |
 
 Before implementing a planned route, define its request/response DTOs, validation, authorization rules, status codes, and error responses. Update this inventory when the route becomes available.

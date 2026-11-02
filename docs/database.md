@@ -1,6 +1,6 @@
 # Database design
 
-Status: **foundation, catalog, lesson, enrollment, and progress schema** (migrations `InitialFoundation`, `AddCategories`, `AddCourses`, `AddLessonsAndEnrollments`, and `AddLessonProgress`).
+Status: **foundation, catalog, learning, and assignment schema** (migrations `InitialFoundation`, `AddCategories`, `AddCourses`, `AddLessonsAndEnrollments`, `AddLessonProgress`, and `AddAssignmentsAndGrading`).
 
 ## ER diagram (current schema)
 
@@ -25,6 +25,9 @@ erDiagram
     Courses ||--o{ Enrollments : "has students"
     AspNetUsers ||--o{ Enrollments : "enrolls"
     AspNetUsers ||--o{ LessonProgress : "completes"
+    Courses ||--o{ Assignments : "sets"
+    Assignments ||--o{ AssignmentSubmissions : "receives attempts"
+    AspNetUsers ||--o{ AssignmentSubmissions : "submits"
     Courses {
         guid Id PK
         guid CategoryId FK
@@ -57,6 +60,27 @@ erDiagram
         guid LessonId FK
         guid StudentUserId FK
         datetime2 CompletedAtUtc
+    }
+    Assignments {
+        guid Id PK
+        guid CourseId FK
+        string Title
+        string Instructions
+        datetime2 DueAtUtc "nullable UTC"
+        int MaxAttempts "default 1"
+        decimal MaxScore
+    }
+    AssignmentSubmissions {
+        guid Id PK
+        guid AssignmentId FK
+        guid StudentUserId FK
+        int AttemptNumber
+        string Text
+        datetime2 SubmittedAtUtc
+        decimal Score "nullable"
+        string Feedback "nullable"
+        datetime2 GradedAtUtc "nullable"
+        guid GradedByUserId "nullable FK"
     }
 
     AspNetUsers {
@@ -102,6 +126,8 @@ Identity's other tables (`AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserToke
 `Lessons` belong to a course and are ordered by `Position`. `Enrollments` have a unique `(StudentUserId, CourseId)` index so a student can enroll in a course only once. Enrollments cascade with course deletion; user deletion is restricted to preserve enrollment history. Archived courses remain linked to their lessons and enrollments, allowing previously enrolled students to retain read access.
 
 `LessonProgress` stores one row per `(StudentUserId, LessonId)`. A row means the lesson is complete; deleting it resets that lesson. Its unique index makes completion idempotent at the data level. Course progress is calculated from the lessons and completion rows, so adding a lesson updates the denominator without rewriting stored progress. Archived course progress is readable but cannot be changed.
+
+Assignments belong to courses and may have an optional UTC deadline, a maximum attempt count (default 1), and a maximum score. Each submission attempt is a separate row; `(AssignmentId, StudentUserId, AttemptNumber)` is unique so history is retained. Scores are stored with two decimal places and cannot exceed the assignment's maximum.
 
 ## Conventions
 

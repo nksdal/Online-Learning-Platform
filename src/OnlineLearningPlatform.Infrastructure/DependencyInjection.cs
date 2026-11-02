@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<ILessonService, LessonService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IProgressService, ProgressService>();
+        services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddHostedService<BootstrapAdminSeeder>();
 
         services.AddOptions<SmtpOptions>()
