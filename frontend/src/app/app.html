@@ -1,0 +1,23 @@
+<header class="site-header">
+  <a class="brand" routerLink="/" aria-label="Open Learning Platform home">
+    <span class="brand-mark">✳</span><span>open<span class="brand-light">learning</span><small>PLATFORM</small></span>
+  </a>
+  <nav class="main-nav" aria-label="Main navigation">
+    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Explore</a>
+    @if (auth.isAuthenticated()) { <a routerLink="/" fragment="catalog">Courses</a> }
+  </nav>
+  <div class="header-actions">
+    @if (auth.isAuthenticated()) {
+      <span class="user-greeting">{{ auth.user()?.firstName || 'Learner' }}</span>
+      <button class="sign-in-link" (click)="signOut()">Sign out</button>
+    } @else {
+      <a class="sign-in-link" routerLink="/login">Sign in</a>
+      <a class="button button-small button-dark" routerLink="/register">Join for free <span>↗</span></a>
+    }
+  </div>
+</header>
+<router-outlet />
+<footer class="site-footer">
+  <a class="brand footer-brand" routerLink="/"><span class="brand-mark">✳</span><span>open<span class="brand-light">learning</span><small>PLATFORM</small></span></a>
+  <span>MAKE SPACE FOR WHAT’S NEXT.</span><span>© {{ year }}</span>
+</footer>

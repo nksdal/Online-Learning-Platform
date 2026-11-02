@@ -41,7 +41,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] Categories: public active-category list; admin create, edit, activate/deactivate; audit logging; `AddCategories` migration generated; build and 57 tests pass
 - [x] Course draft, submission, admin approval/rejection, teacher resubmission, public published catalogue, and terminal archive; `AddCourses` migration generated and covered by lifecycle tests
 - [x] Lessons and enrollments: teacher lesson management, student enrollment in published courses, enrolled-only lesson access, archive read access; `AddLessonsAndEnrollments` applied to Compose SQL Server; 64 tests pass (43 integration, 21 unit)
-- [ ] Angular project, auth screens, course catalogue, course details, enrollment
+- [x] Angular 21 project, student auth screens, course catalogue/details, and enrollment; production build succeeds
 
 ## Week 3 - Learning workflows and features
 

@@ -2,7 +2,7 @@
 
 A secure, production-style online learning platform: students discover courses, enroll, work through lessons and assignments, and track progress; teachers create and grade; administrators moderate.
 
-> **Status: Backend learning workflows implemented through discussions, streaks, recommendations, and deadline reminders. Student, teacher, and admin interfaces are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
+> **Status: Backend learning workflows are implemented; the Angular student foundation now includes authentication, catalogue, course details, and enrollment. Teacher and admin interfaces are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
 
 ## Roles
 
@@ -25,7 +25,7 @@ Each user has exactly one role in v1.
 | API docs | Swagger / OpenAPI via Swashbuckle |
 | Tests | xUnit; in-memory API tests now, Testcontainers with real SQL Server for database workflows *(planned)* |
 | Containers / CI | Docker, Docker Compose, GitHub Actions *(Compose foundation in progress)* |
-| Frontend | Angular + TypeScript, in `frontend/` *(Week 2)* |
+| Frontend | Angular 21 + TypeScript, in `frontend/` |
 
 ## Repository layout
 
@@ -38,7 +38,7 @@ src/
 tests/
   OnlineLearningPlatform.UnitTests/
   OnlineLearningPlatform.IntegrationTests/
-frontend/    Angular app (Week 2)
+frontend/    Angular student app
 deploy/      production compose, reverse proxy, backup scripts (Week 4)
 docs/        architecture, database, endpoints, security notes
 ```
@@ -52,7 +52,7 @@ Dependencies point inward. See [docs/architecture.md](docs/architecture.md).
 | .NET SDK | 10.0.401 (pinned in `global.json`) |
 | Docker Desktop | with the WSL2 backend |
 | Git | 2.50+ |
-| Node.js / npm | 24.x / 11.x (only needed for `frontend/`) |
+| Node.js / npm | 24.x / 11.x (needed for `frontend/`) |
 
 ## Getting started
 
@@ -125,11 +125,22 @@ Local URLs:
 | `localhost:1025` | Mailpit SMTP, for local tools |
 | `localhost,14330` | SQL Server, for local database tools (avoids colliding with a local SQL Express instance) |
 
+### Run the Angular frontend
+
+With the Compose API running, start the frontend in a second PowerShell window:
+
+```powershell
+cd frontend
+npm start
+```
+
+Open `http://localhost:4200`. The initial student experience supports registration, email confirmation through Mailpit, sign-in, password recovery, published-course browsing, course details, and enrollment. Change the API address in `frontend/src/environments/environment.ts` if the API uses a different local URL.
+
 The published ports bind to `127.0.0.1`. SQL Server data and captured Mailpit messages use named Docker volumes and survive container recreation. Stop the stack with `docker compose down`; this preserves those volumes. `docker compose down --volumes` deletes the local database and Mailpit data.
 
 To try registration, send a `POST` to `/api/auth/register` with JSON containing `email`, `firstName`, `lastName`, and `password`. Open Mailpit at `http://localhost:8025`; for API-only development, copy the confirmation link's `userId` and `token` values into a `POST` to `/api/auth/verify-email` through Swagger. Then send `email` and `password` to `POST /api/auth/login`; a confirmed, active account receives a short-lived JWT in the response and a 30-day refresh token in an HttpOnly cookie. The `/api/auth/refresh` and `/api/auth/logout` requests require the cookie plus `X-Refresh-Request: 1`; `/api/auth/logout-all` also requires a bearer access token. Registration responses intentionally do not reveal whether an email is already registered.
 
-Password recovery uses `POST /api/auth/forgot-password` with an email address. For a confirmed, active account, Mailpit captures a reset link; copy its `userId` and `token` values into `POST /api/auth/reset-password` with a `newPassword`. The response for an unknown email is the same as for a known email. A successful reset revokes all refresh-token sessions for that account. The reset link targets the configured frontend page, so with no frontend running yet use Swagger to submit the reset request.
+Password recovery uses `POST /api/auth/forgot-password` with an email address. For a confirmed, active account, Mailpit captures a reset link that opens the Angular reset-password page. The response for an unknown email is the same as for a known email. A successful reset revokes all refresh-token sessions for that account. If you are using Swagger instead, submit the link's `userId` and `token` with `newPassword` to `POST /api/auth/reset-password`.
 
 To seed the first administrator, set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` in your ignored `.env` file, then recreate the API with `docker compose up --build --detach`. If either value is absent, startup skips admin seeding; if an admin already exists, startup leaves it unchanged. The initial admin can log in but must change the bootstrap password through `POST /api/users/me/password` before using other protected routes. That endpoint returns a new access token; replace the old one in Swagger's Authorize dialog.
 
