@@ -67,6 +67,7 @@ public sealed class RefreshToken
 
         return new RefreshToken
         {
+            Id = Guid.NewGuid(),
             UserId = userId,
             FamilyId = familyId,
             TokenHash = tokenHash,

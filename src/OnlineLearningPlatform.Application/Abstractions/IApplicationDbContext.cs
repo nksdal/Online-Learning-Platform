@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using OnlineLearningPlatform.Domain.Auditing;
+using OnlineLearningPlatform.Domain.Catalog;
 using OnlineLearningPlatform.Domain.Identity;
 
 namespace OnlineLearningPlatform.Application.Abstractions;
@@ -12,6 +13,16 @@ namespace OnlineLearningPlatform.Application.Abstractions;
 /// </summary>
 public interface IApplicationDbContext
 {
+    DbSet<Category> Categories { get; }
+
+    DbSet<Course> Courses { get; }
+
+    DbSet<Lesson> Lessons { get; }
+
+    DbSet<Enrollment> Enrollments { get; }
+
+    DbSet<LessonProgress> LessonProgress { get; }
+
     DbSet<ApplicationUser> Users { get; }
 
     DbSet<RefreshToken> RefreshTokens { get; }

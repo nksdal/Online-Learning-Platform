@@ -1,8 +1,8 @@
 # Database design
 
-Status: **foundation schema** (migration `InitialFoundation`). Later entities (courses, lessons, enrollments, ...) arrive through their own migrations and are added to this document as they are built.
+Status: **foundation, catalog, lesson, enrollment, and progress schema** (migrations `InitialFoundation`, `AddCategories`, `AddCourses`, `AddLessonsAndEnrollments`, and `AddLessonProgress`).
 
-## ER diagram (foundation)
+## ER diagram (current schema)
 
 ```mermaid
 erDiagram
@@ -10,6 +10,54 @@ erDiagram
     AspNetRoles ||--o{ AspNetUserRoles : "assigned via"
     AspNetUsers ||--o{ RefreshTokens : "owns sessions"
     AspNetUsers ||..o{ AuditLogs : "acts (no FK)"
+    Categories {
+        guid Id PK
+        string Name "unique"
+        string Description "nullable"
+        bool IsActive
+        datetime2 CreatedAtUtc
+        datetime2 UpdatedAtUtc
+    }
+    Categories ||--o{ Courses : "classifies"
+    AspNetUsers ||--o{ Courses : "teaches"
+    Courses ||--o{ Lessons : "contains"
+    Lessons ||--o{ LessonProgress : "completion records"
+    Courses ||--o{ Enrollments : "has students"
+    AspNetUsers ||--o{ Enrollments : "enrolls"
+    AspNetUsers ||--o{ LessonProgress : "completes"
+    Courses {
+        guid Id PK
+        guid CategoryId FK
+        guid InstructorUserId FK
+        string Title
+        string Summary
+        string Description
+        string Status "Draft, PendingApproval, Published, Rejected, Archived"
+        string RejectionReason "nullable"
+        datetime2 CreatedAtUtc
+        datetime2 UpdatedAtUtc
+    }
+    Lessons {
+        guid Id PK
+        guid CourseId FK
+        string Title
+        string Content
+        int Position
+        datetime2 CreatedAtUtc
+        datetime2 UpdatedAtUtc
+    }
+    Enrollments {
+        guid Id PK
+        guid CourseId FK
+        guid StudentUserId FK
+        datetime2 EnrolledAtUtc
+    }
+    LessonProgress {
+        guid Id PK
+        guid LessonId FK
+        guid StudentUserId FK
+        datetime2 CompletedAtUtc
+    }
 
     AspNetUsers {
         guid Id PK
@@ -46,6 +94,14 @@ erDiagram
 ```
 
 Identity's other tables (`AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`, `AspNetRoleClaims`) exist but are not used by the platform yet and are omitted from the diagram.
+
+`Categories.Name` has a unique index, and `IsActive` is indexed for the public active-category query. Categories are deactivated rather than deleted so existing course references can remain valid when courses are added.
+
+`Courses` references its category and instructor with restrictive deletes. Status and instructor have indexes, along with a combined status/category index for the public catalogue. Course status is stored as a string to keep database rows readable and resilient to enum ordering changes.
+
+`Lessons` belong to a course and are ordered by `Position`. `Enrollments` have a unique `(StudentUserId, CourseId)` index so a student can enroll in a course only once. Enrollments cascade with course deletion; user deletion is restricted to preserve enrollment history. Archived courses remain linked to their lessons and enrollments, allowing previously enrolled students to retain read access.
+
+`LessonProgress` stores one row per `(StudentUserId, LessonId)`. A row means the lesson is complete; deleting it resets that lesson. Its unique index makes completion idempotent at the data level. Course progress is calculated from the lessons and completion rows, so adding a lesson updates the denominator without rewriting stored progress. Archived course progress is readable but cannot be changed.
 
 ## Conventions
 

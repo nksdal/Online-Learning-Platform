@@ -43,6 +43,11 @@ flowchart LR
 | **Real SQL Server in tests (Testcontainers)** | SQLite or the in-memory provider do not enforce SQL Server constraints, transactions, collations or concurrency tokens the same way. | Tests need Docker and are slower. |
 | **Hosted `BackgroundService` for reminders** | One API instance; no extra infrastructure. Idempotency comes from a unique notification key in the database. | If the API is ever scaled to several instances, a distributed lock or a job scheduler would be needed. Documented, not built. |
 | **No URL-versioning package in v1** | `/api/...` routes are enough for one client. | Versioning can be added before a breaking change. |
+| **Infrastructure references the ASP.NET Core shared framework** | Identity's token providers, Data Protection, health checks and (later) hosted services live there. | Infrastructure is no longer framework-free. It still does not reference the Api project, and Domain/Application stay free of it. |
+| **Expected failures are exceptions** (`NotFoundException`, `ForbiddenException`, `ConflictException`, `BusinessRuleException`), mapped centrally | Services stay readable: they throw, one handler turns it into the right HTTP response, controllers contain no error plumbing. | A `Result<T>` type makes failures explicit in signatures but adds boilerplate to every call. Exceptions are used only for rule violations, not for normal control flow. |
+| **Swashbuckle 10 for Swagger** | .NET 10 templates no longer include Swagger. Swashbuckle 10 targets .NET 10 and Microsoft.OpenApi 2. | The OpenAPI model API changed in v2 (security schemes are built from the document); code examples for older versions do not compile. |
+| **Configuration is read lazily / after `Build()`** | `Program.cs` reads settings only after the host is built, and the DbContext reads its connection string when first created. This lets integration tests replace configuration. | Missing configuration is detected at the end of startup instead of the first line. |
+| **Two health endpoints** | `/health/live` runs no checks (the process is up); `/health/ready` checks the database. An orchestrator restarts on liveness failure and stops routing on readiness failure, so a database outage must not restart a healthy app. | None significant. |
 
 ## 3. Agreed v1 business rules (summary)
 
@@ -57,8 +62,10 @@ Published -> Archived
 
 - A teacher submits a Draft for review; an admin approves or rejects it.
 - Only `Published` courses can be enrolled in.
+- A teacher may edit a `Rejected` course and resubmit it for review.
+- `Archived` is terminal; a course cannot return to `Published`.
+- Students already enrolled in a course retain read access to its material after it is archived.
 - Known v1 limitation: a teacher may edit a published course without re-approval. The state machine is built so a re-approval rule can be added later.
-- Open details to confirm in Week 2 before coding: what a teacher can do with a `Rejected` course (proposal: edit, then resubmit); whether `Archived` is terminal; what enrolled students can still see in an archived course.
 
 **Assignments and submissions.** Every attempt is its own row. `MaxAttempts` defaults to 1. History is preserved. Text submissions first; attachments only if time permits.
 
@@ -66,16 +73,18 @@ Published -> Archived
 
 **Scope.** Free courses only. No payments, no quizzes. Discussions are included.
 
-## 4. Authentication design (not yet implemented)
+## 4. Authentication design and implementation status
+
+The authentication foundation is implemented: the API issues and validates short-lived JWTs, and defines Student/Teacher/Admin role policies. Student registration, email confirmation, login, refresh-token rotation, reuse detection, logout, logout-all, password recovery, bootstrap-admin creation, and user/role administration are implemented. Refresh tokens are stored as hashes and delivered only in an HttpOnly cookie. A bootstrap admin is created only when `BootstrapAdmin:Email` and `BootstrapAdmin:Password` are configured and no admin exists. Its first access token requires a password change; only the password-change and logout endpoints are allowed until then. Admins can list users, assign exactly one of the three roles, and activate or deactivate accounts. The last active admin cannot be demoted or deactivated. Role and account-status changes are audited and rotate the user's security stamp, invalidating old access tokens; inactive users are rejected on every authenticated request.
 
 | Topic | Design |
 |---|---|
 | Passwords | ASP.NET Core Identity hashing and password policy. No custom hashing. |
 | Registration | Always Student. Email verification required before login. Verification tokens come from Identity, are time-limited, and the resend endpoint is rate-limited and reveals nothing about whether an address exists. |
 | Access token | JWT, lifetime of at most 15 minutes, returned in the JSON body. The Angular app keeps it in memory, never in `localStorage`. |
-| Refresh token | Random value, stored only as a hash. Delivered in an `HttpOnly` cookie; `Secure` and `SameSite=Strict` in production; cookie `Path` limited to `/api/auth`. Rotated on every use. |
+| Refresh token | Random value, stored only as a hash. Delivered in an `HttpOnly` cookie; `Secure` outside Development and `SameSite=Strict`; cookie `Path` limited to `/api/auth`. Rotated on every use; 30-day lifetime. |
 | Reuse detection | Each token belongs to a "family". Presenting an already-rotated token revokes the whole family. |
-| CSRF | The refresh and logout endpoints require a custom request header that cross-site forms cannot send, in addition to `SameSite` and a narrow CORS allow-list. |
+| CSRF | Refresh and logout endpoints require `X-Refresh-Request: 1`, in addition to `SameSite=Strict` and a credentialed CORS allow-list. Configure additional frontend origins through `Cors:AllowedOrigins`. |
 | Lockout | Identity lockout after repeated failed logins; generic error messages. |
 | Seeded admin | Created from environment variables or user-secrets only when no admin exists. Flagged `MustChangePassword`; until changed, every endpoint except change-password and logout is refused. |
 | Safeguards | The last active admin cannot be demoted or deactivated. Every role change writes an audit-log entry. Disabled users are rejected even when holding a valid access token. |
@@ -90,3 +99,23 @@ Local development works over `http://localhost` because browsers treat ports on 
 | **Local SQL Server Express** (`.\SQLEXPRESS`) | Optional alternative when running the API from Visual Studio. Uses Windows Authentication. |
 
 Note for local Express: `sqlcmd -C` and `TrustServerCertificate=True` in a connection string both mean "accept the server's certificate without validating it". That is acceptable on a development machine and must never be used in production configuration.
+
+## 6. Error contract
+
+Every non-success response is an RFC 9457 Problem Details document (`application/problem+json`) containing `status`, `title`, `detail` and a `traceId` that matches the server log entry.
+
+| Situation | Status | Source |
+|---|---|---|
+| Malformed JSON, failed validation (FluentValidation or model binding) | 400 + `errors` (camelCase keys) | `ValidationFilter` / ASP.NET Core |
+| Not authenticated | 401 | JWT bearer middleware (Week 2) |
+| Authenticated but not allowed | 403 | `ForbiddenException` |
+| Missing resource, or one the caller may not know exists | 404 | `NotFoundException`, unknown routes |
+| Conflicts with current state (duplicate enrollment, stale update) | 409 | `ConflictException` |
+| Well-formed request that breaks a business rule | 422 | `BusinessRuleException` |
+| Anything unexpected | 500, generic message only | `GlobalExceptionHandler` |
+
+The message of an `AppException` is shown to the client, so it must never contain sensitive data. Unexpected exceptions are logged in full on the server and never described to the client. This is covered by tests (`ErrorHandlingTests`).
+
+## 7. Logging
+
+Serilog, configured from the `Serilog` section of `appsettings*.json`, writing to the console (Docker collects it). Request logging records method, path, status code and duration. The query string is not logged. Health probes are logged at `Verbose`. Passwords, tokens and request bodies are never logged. Structured JSON output for production is configured with the Docker setup (Step 5e).

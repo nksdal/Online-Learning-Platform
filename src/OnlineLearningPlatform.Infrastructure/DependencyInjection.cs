@@ -1,9 +1,16 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OnlineLearningPlatform.Application.Abstractions;
+using OnlineLearningPlatform.Application.Catalog;
+using OnlineLearningPlatform.Application.Authentication;
+using OnlineLearningPlatform.Infrastructure.Authentication;
+using OnlineLearningPlatform.Infrastructure.Catalog;
+using OnlineLearningPlatform.Infrastructure.Email;
 using OnlineLearningPlatform.Domain.Identity;
+using OnlineLearningPlatform.Infrastructure.Health;
 using OnlineLearningPlatform.Infrastructure.Persistence;
 
 namespace OnlineLearningPlatform.Infrastructure;
@@ -11,16 +18,59 @@ namespace OnlineLearningPlatform.Infrastructure;
 public static class DependencyInjection
 {
     /// <summary>Registers everything Infrastructure provides. Called once from the Api's Program.cs.</summary>
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-
         // The clock is injected, never read from DateTime.UtcNow, so tests can control time.
         services.TryAddSingleton(TimeProvider.System);
 
-        services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+        // The connection string is read when the DbContext is first created, not while services are being
+        // registered. That keeps startup order-independent and lets integration tests override configuration.
+        services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
+        {
+            var connectionString = serviceProvider
+                .GetRequiredService<IConfiguration>()
+                .GetConnectionString("DefaultConnection");
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+            }
+
+            // Retries transient SQL errors. Note: explicit transactions must run inside
+            // dbContext.Database.CreateExecutionStrategy().ExecuteAsync(...) when this is enabled.
+            options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure());
+        });
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IUserManagementService, UserManagementService>();
+        services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<ICourseService, CourseService>();
+        services.AddScoped<ILessonService, LessonService>();
+        services.AddScoped<IEnrollmentService, EnrollmentService>();
+        services.AddScoped<IProgressService, ProgressService>();
+        services.AddHostedService<BootstrapAdminSeeder>();
+
+        services.AddOptions<SmtpOptions>()
+            .BindConfiguration(SmtpOptions.SectionName)
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "Email SMTP host is required.")
+            .Validate(options => options.Port is > 0 and <= 65535, "Email SMTP port is invalid.")
+            .Validate(options => string.IsNullOrWhiteSpace(options.UserName) || !string.IsNullOrWhiteSpace(options.Password),
+                "Email SMTP password is required when a username is configured.")
+            .ValidateOnStart();
+        services.AddOptions<EmailOptions>()
+            .BindConfiguration(EmailOptions.SectionName)
+            .Validate(options => System.Net.Mail.MailAddress.TryCreate(options.FromAddress, out _), "Email sender address is invalid.")
+            .Validate(options => Uri.TryCreate(options.VerificationPageUrl, UriKind.Absolute, out var uri) &&
+                                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+                                 string.IsNullOrEmpty(uri.UserInfo),
+                "Email verification page URL must be an absolute HTTP or HTTPS URL without user information.")
+            .Validate(options => Uri.TryCreate(options.PasswordResetPageUrl, UriKind.Absolute, out var resetUri) &&
+                                 (resetUri.Scheme == Uri.UriSchemeHttp || resetUri.Scheme == Uri.UriSchemeHttps) &&
+                                 string.IsNullOrEmpty(resetUri.UserInfo),
+                "Email password reset page URL must be an absolute HTTP or HTTPS URL without user information.")
+            .ValidateOnStart();
+        services.TryAddTransient<IEmailSender, MailKitEmailSender>();
+        services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(3));
 
         // AddIdentityCore (not AddIdentity): we want the user/role/token machinery but NOT Identity's
         // cookie authentication, because this API authenticates with JWT bearer tokens.
@@ -29,7 +79,11 @@ public static class DependencyInjection
             .AddIdentityCore<ApplicationUser>(ConfigureIdentity)
             .AddRoles<ApplicationRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddSignInManager()
             .AddDefaultTokenProviders();
+
+        // "ready" = the app can serve real requests. /health/live deliberately runs no checks.
+        services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
         return services;
     }

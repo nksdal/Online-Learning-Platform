@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using OnlineLearningPlatform.Application.Abstractions;
 using OnlineLearningPlatform.Domain.Auditing;
+using OnlineLearningPlatform.Domain.Catalog;
 using OnlineLearningPlatform.Domain.Common;
 using OnlineLearningPlatform.Domain.Identity;
 using OnlineLearningPlatform.Infrastructure.Persistence.Converters;
@@ -24,6 +25,16 @@ public sealed class ApplicationDbContext
     }
 
     // "Users" comes from IdentityDbContext and satisfies IApplicationDbContext.Users.
+    public DbSet<Category> Categories => Set<Category>();
+
+    public DbSet<Course> Courses => Set<Course>();
+
+    public DbSet<Lesson> Lessons => Set<Lesson>();
+
+    public DbSet<Enrollment> Enrollments => Set<Enrollment>();
+
+    public DbSet<LessonProgress> LessonProgress => Set<LessonProgress>();
+
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
