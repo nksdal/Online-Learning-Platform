@@ -10,7 +10,11 @@ namespace OnlineLearningPlatform.Api.Controllers;
 [ApiController]
 [Route("api/admin/courses")]
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class AdminCoursesController(ICourseService courses, ILessonService lessons, IAssignmentService assignments) : ControllerBase
+public sealed class AdminCoursesController(
+    ICourseService courses,
+    ILessonService lessons,
+    IAssignmentService assignments,
+    IDiscussionService discussions) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyCollection<CourseResponse>), StatusCodes.Status200OK)]
@@ -29,6 +33,9 @@ public sealed class AdminCoursesController(ICourseService courses, ILessonServic
 
     [HttpGet("{id:guid}/assignments")]
     public async Task<IActionResult> ListAssignments(Guid id, CancellationToken ct) => Ok(await assignments.ListForAdminAsync(id, ct));
+
+    [HttpGet("{id:guid}/discussions")]
+    public async Task<IActionResult> ListDiscussions(Guid id, CancellationToken ct) => Ok(await discussions.ListForAdminAsync(id, ct));
 
     [HttpPost("{id:guid}/approve")]
     public async Task<IActionResult> Approve(Guid id, CancellationToken ct) =>

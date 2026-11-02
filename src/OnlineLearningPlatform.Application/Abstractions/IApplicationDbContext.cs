@@ -27,6 +27,10 @@ public interface IApplicationDbContext
 
     DbSet<AssignmentSubmission> AssignmentSubmissions { get; }
 
+    DbSet<CourseDiscussionPost> CourseDiscussionPosts { get; }
+
+    DbSet<AssignmentDeadlineReminder> AssignmentDeadlineReminders { get; }
+
     DbSet<ApplicationUser> Users { get; }
 
     DbSet<RefreshToken> RefreshTokens { get; }

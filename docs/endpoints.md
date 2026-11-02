@@ -67,6 +67,15 @@ This document distinguishes endpoints that are implemented now from routes plann
 | `PUT` | `/api/submissions/{submissionId}/grade` | Owning Teacher bearer JWT | Grades a submission with a score from zero through the assignment's maximum and optional feedback. |
 | `GET` | `/api/admin/courses/{courseId}/assignments` | Admin bearer JWT | Lists assignments for any course. |
 | `GET` | `/api/admin/assignments/{assignmentId}/submissions` | Admin bearer JWT | Reads all submissions for an assignment. |
+| `GET` | `/api/courses/{courseId}/discussions` | Enrolled Student bearer JWT | Lists visible discussion posts and replies for a Published or Archived course. |
+| `POST` | `/api/courses/{courseId}/discussions` | Enrolled Student bearer JWT | Creates a discussion post in a Published course. |
+| `POST` | `/api/discussions/{postId}/replies` | Enrolled Student bearer JWT | Replies to a visible post in a Published course. |
+| `GET` | `/api/teacher/courses/{courseId}/discussions` | Owning Teacher bearer JWT | Lists visible and hidden posts for the teacher's course. |
+| `PUT` | `/api/teacher/discussions/{postId}/moderation` | Owning Teacher bearer JWT | Hides or restores a post; hiding requires a reason. |
+| `GET` | `/api/admin/courses/{courseId}/discussions` | Admin bearer JWT | Lists all posts, including hidden posts. |
+| `PUT` | `/api/admin/discussions/{postId}/moderation` | Admin bearer JWT | Hides or restores any post; hiding requires a reason. |
+| `GET` | `/api/users/me/streak` | Student bearer JWT | Returns current and longest learning streaks using the student's time zone and lesson completions. |
+| `GET` | `/api/users/me/recommendations?limit=10` | Student bearer JWT | Recommends published courses, preferring the student's enrolled categories, then overall enrollment popularity; limit is clamped to 1–20. |
 
 Unknown paths return `404` using `application/problem+json`. The health routes are anonymous so Docker or an orchestrator can probe the service without credentials.
 

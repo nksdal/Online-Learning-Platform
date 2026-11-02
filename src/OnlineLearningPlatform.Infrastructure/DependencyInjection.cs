@@ -49,7 +49,20 @@ public static class DependencyInjection
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IProgressService, ProgressService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
+        services.AddScoped<IDiscussionService, DiscussionService>();
+        services.AddScoped<IStreakService, StreakService>();
+        services.AddScoped<IRecommendationService, RecommendationService>();
+        services.AddScoped<IAssignmentDeadlineReminderProcessor, AssignmentDeadlineReminderProcessor>();
         services.AddHostedService<BootstrapAdminSeeder>();
+        services.AddHostedService<AssignmentDeadlineReminderWorker>();
+
+        services.AddOptions<AssignmentDeadlineReminderOptions>()
+            .BindConfiguration(AssignmentDeadlineReminderOptions.SectionName)
+            .Validate(options => options.PollIntervalMinutes is >= 1 and <= 1440,
+                "Assignment deadline reminder poll interval must be between 1 and 1440 minutes.")
+            .Validate(options => options.ReminderWindowHours is >= 1 and <= 168,
+                "Assignment deadline reminder window must be between 1 and 168 hours.")
+            .ValidateOnStart();
 
         services.AddOptions<SmtpOptions>()
             .BindConfiguration(SmtpOptions.SectionName)

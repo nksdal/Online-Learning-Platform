@@ -170,6 +170,46 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.AssignmentDeadlineReminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AssignmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("StudentUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StudentUserId");
+
+                    b.HasIndex("AssignmentId", "StudentUserId")
+                        .IsUnique();
+
+                    b.HasIndex("SentAtUtc", "AttemptCount");
+
+                    b.ToTable("AssignmentDeadlineReminders", (string)null);
+                });
+
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.AssignmentSubmission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -356,6 +396,58 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.HasIndex("CourseId", "DueAtUtc");
 
                     b.ToTable("Assignments", (string)null);
+                });
+
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.CourseDiscussionPost", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AuthorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("CourseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ModeratedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ModeratedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ModerationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("ParentPostId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserId");
+
+                    b.HasIndex("ModeratedByUserId");
+
+                    b.HasIndex("ParentPostId");
+
+                    b.HasIndex("CourseId", "CreatedAtUtc");
+
+                    b.ToTable("CourseDiscussionPosts", (string)null);
                 });
 
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.Enrollment", b =>
@@ -705,6 +797,21 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.AssignmentDeadlineReminder", b =>
+                {
+                    b.HasOne("OnlineLearningPlatform.Domain.Catalog.CourseAssignment", null)
+                        .WithMany()
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OnlineLearningPlatform.Domain.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("StudentUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.AssignmentSubmission", b =>
                 {
                     b.HasOne("OnlineLearningPlatform.Domain.Catalog.CourseAssignment", null)
@@ -747,6 +854,31 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CourseId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.CourseDiscussionPost", b =>
+                {
+                    b.HasOne("OnlineLearningPlatform.Domain.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OnlineLearningPlatform.Domain.Catalog.Course", null)
+                        .WithMany()
+                        .HasForeignKey("CourseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OnlineLearningPlatform.Domain.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("ModeratedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("OnlineLearningPlatform.Domain.Catalog.CourseDiscussionPost", null)
+                        .WithMany()
+                        .HasForeignKey("ParentPostId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.Enrollment", b =>

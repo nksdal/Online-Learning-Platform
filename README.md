@@ -2,7 +2,7 @@
 
 A secure, production-style online learning platform: students discover courses, enroll, work through lessons and assignments, and track progress; teachers create and grade; administrators moderate.
 
-> **Status: Backend foundation, catalog, learning, progress tracking, assignments, submissions, and grading implemented. Discussions and streaks are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
+> **Status: Backend learning workflows implemented through discussions, streaks, recommendations, and deadline reminders. Student, teacher, and admin interfaces are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
 
 ## Roles
 
@@ -144,6 +144,10 @@ Students enroll in a published course with `POST /api/courses/{courseId}/enrollm
 Enrolled students can mark a lesson complete with `PUT /api/lessons/{lessonId}/progress` and reset it with `DELETE` on the same route. `GET /api/courses/{courseId}/progress/me` shows completed lessons, total lessons, and the percentage complete. Progress remains visible after archive, but cannot be changed once the course is archived.
 
 Teachers create text assignments with `POST /api/teacher/courses/{courseId}/assignments`. The optional `dueAtUtc` must be UTC (end with `Z`); `maxAttempts` defaults to 1 and `maxScore` to 100. Enrolled students submit each attempt separately with `POST /api/assignments/{assignmentId}/submissions`. Teachers inspect attempts with `GET /api/teacher/assignments/{assignmentId}/submissions` and grade one with `PUT /api/submissions/{submissionId}/grade`, sending `{ "score": 8.5, "feedback": "Good work." }`. Students see their attempts and feedback through `GET /api/assignments/{assignmentId}/submissions/me`.
+
+Enrolled students discuss course material through `GET` and `POST /api/courses/{courseId}/discussions`; replies use `POST /api/discussions/{postId}/replies`. Course teachers can hide or restore posts with `PUT /api/teacher/discussions/{postId}/moderation`; hiding requires a reason. Admins can inspect and moderate any course discussion. Student streaks are available at `GET /api/users/me/streak`; the calculation uses the student's configured time zone and completed lessons. `GET /api/users/me/recommendations` ranks published courses by the student's enrolled categories and course popularity.
+
+The reminder worker checks every 15 minutes for assignments due within the next 24 hours and emails enrolled students who have not submitted. In local Compose, those messages are captured in Mailpit. Failed sends are retried up to five times, and each student receives at most one reminder per assignment.
 
 For a public deployment, replace Mailpit's SMTP settings with your email provider's host, port, TLS mode, username, and password. Set `Email__FromAddress` to a sender address on a verified sending domain, and set `Email__VerificationPageUrl` and `Email__PasswordResetPageUrl` to the public frontend routes. Store SMTP credentials in the deployment's secret store; do not commit them to the repository. Keep Mailpit for local development.
 

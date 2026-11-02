@@ -1,6 +1,6 @@
 # Database design
 
-Status: **foundation, catalog, learning, and assignment schema** (migrations `InitialFoundation`, `AddCategories`, `AddCourses`, `AddLessonsAndEnrollments`, `AddLessonProgress`, and `AddAssignmentsAndGrading`).
+Status: **foundation, catalog, learning, assignments, discussions, and reminders schema** (migrations `InitialFoundation`, `AddCategories`, `AddCourses`, `AddLessonsAndEnrollments`, `AddLessonProgress`, `AddAssignmentsAndGrading`, and `AddDiscussionsAndDeadlineReminders`).
 
 ## ER diagram (current schema)
 
@@ -28,6 +28,10 @@ erDiagram
     Courses ||--o{ Assignments : "sets"
     Assignments ||--o{ AssignmentSubmissions : "receives attempts"
     AspNetUsers ||--o{ AssignmentSubmissions : "submits"
+    Courses ||--o{ CourseDiscussionPosts : "discussed in"
+    CourseDiscussionPosts ||--o{ CourseDiscussionPosts : "replies"
+    Assignments ||--o{ AssignmentDeadlineReminders : "sends reminders"
+    AspNetUsers ||--o{ AssignmentDeadlineReminders : "receives reminders"
     Courses {
         guid Id PK
         guid CategoryId FK
@@ -82,6 +86,24 @@ erDiagram
         datetime2 GradedAtUtc "nullable"
         guid GradedByUserId "nullable FK"
     }
+    CourseDiscussionPosts {
+        guid Id PK
+        guid CourseId FK
+        guid AuthorUserId FK
+        guid ParentPostId "nullable self FK"
+        string Body
+        bool IsHidden
+        string ModerationReason "nullable"
+        guid ModeratedByUserId "nullable FK"
+    }
+    AssignmentDeadlineReminders {
+        guid Id PK
+        guid AssignmentId FK
+        guid StudentUserId FK
+        datetime2 SentAtUtc "nullable"
+        int AttemptCount
+        string LastError "nullable"
+    }
 
     AspNetUsers {
         guid Id PK
@@ -128,6 +150,8 @@ Identity's other tables (`AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserToke
 `LessonProgress` stores one row per `(StudentUserId, LessonId)`. A row means the lesson is complete; deleting it resets that lesson. Its unique index makes completion idempotent at the data level. Course progress is calculated from the lessons and completion rows, so adding a lesson updates the denominator without rewriting stored progress. Archived course progress is readable but cannot be changed.
 
 Assignments belong to courses and may have an optional UTC deadline, a maximum attempt count (default 1), and a maximum score. Each submission attempt is a separate row; `(AssignmentId, StudentUserId, AttemptNumber)` is unique so history is retained. Scores are stored with two decimal places and cannot exceed the assignment's maximum.
+
+Discussion posts are retained when moderated; hiding records the moderator and reason, while student lists omit hidden posts. Deadline reminders have a unique assignment/student pair, are retried up to five delivery attempts, and are marked sent only after the email sender succeeds. Streaks and recommendations are derived from existing completion and enrollment records, so they need no extra tables.
 
 ## Conventions
 

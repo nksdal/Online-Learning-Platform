@@ -47,7 +47,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 
 - [x] Lesson completion and course progress: complete/reset lesson, per-course summary; `AddLessonProgress` applied to Compose SQL Server; 65 tests pass (44 integration, 21 unit)
 - [x] Text assignments, deadline enforcement, attempt history (`MaxAttempts` defaults to 1), and teacher grading; `AddAssignmentsAndGrading` applied to Compose SQL Server; 66 tests pass (45 integration, 21 unit)
-- [ ] Discussions, learning streaks, recommendations, deadline reminders
+- [x] Course discussions with replies and teacher/admin moderation; local-day learning streaks; category/popularity course recommendations; 24-hour assignment deadline email reminders; `AddDiscussionsAndDeadlineReminders` applied to Compose SQL Server; 69 tests pass (48 integration, 21 unit)
 - [ ] Student, teacher and admin interfaces
 - [ ] GitHub Actions CI (build, test, Docker image build)
 
