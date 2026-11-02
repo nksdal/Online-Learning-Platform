@@ -48,7 +48,8 @@ export class LoginPage {
       const { email, password } = this.form.getRawValue();
       await this.auth.signIn(email.trim(), password);
       const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-      await this.router.navigateByUrl(returnUrl?.startsWith('/') ? returnUrl : '/');
+      const destination = returnUrl?.startsWith('/') ? returnUrl : this.auth.user()?.roles.includes('Student') ? '/my-learning' : '/';
+      await this.router.navigateByUrl(destination);
     } catch (err) { this.error.set(apiMessage(err, 'Sign-in failed. Check your email, password, and verification status.')); }
     finally { this.busy.set(false); }
   }

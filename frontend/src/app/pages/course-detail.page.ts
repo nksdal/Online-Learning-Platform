@@ -18,7 +18,7 @@ import { Course } from '../core/models';
         <section class="detail-hero">
           <div class="detail-copy"><span class="eyebrow">A COURSE FOR YOUR NEXT CHAPTER</span><h1>{{ item.title }}</h1><p class="detail-summary">{{ item.summary }}</p>
             <div class="detail-actions">
-              @if (enrolled()) { <span class="enrolled-pill">✓ You’re enrolled</span> }
+              @if (enrolled()) { <a class="button button-dark" [routerLink]="['/learn', courseId]">Continue learning <span>↗</span></a> }
               @else { <button class="button button-dark" [disabled]="enrolling()" (click)="enroll()">{{ enrolling() ? 'Joining…' : 'Enroll in this course' }} <span>↗</span></button> }
             </div>
             @if (notice()) { <p class="inline-notice" role="status">{{ notice() }}</p> }
@@ -44,7 +44,7 @@ export class CourseDetailPage implements OnInit {
   readonly error = signal('');
   readonly failure = signal('');
   readonly notice = signal('');
-  private courseId = '';
+  courseId = '';
 
   ngOnInit(): void {
     this.courseId = this.route.snapshot.paramMap.get('id') ?? '';

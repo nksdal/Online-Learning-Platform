@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Category, Course, Enrollment, MessageResponse, TokenResponse, UserProfile } from './models';
+import { Category, Course, CourseProgress, Enrollment, LearningStreak, Lesson, MessageResponse, RecommendedCourse, TokenResponse, UserProfile } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -16,6 +16,12 @@ export class ApiService {
   course(id: string) { return this.http.get<Course>(`${this.root}/api/courses/${id}`); }
   enroll(courseId: string) { return this.http.post<Enrollment>(`${this.root}/api/courses/${courseId}/enrollments`, {}); }
   myEnrollments() { return this.http.get<Enrollment[]>(`${this.root}/api/users/me/enrollments`); }
+  myStreak() { return this.http.get<LearningStreak>(`${this.root}/api/users/me/streak`); }
+  recommendations() { return this.http.get<RecommendedCourse[]>(`${this.root}/api/users/me/recommendations`); }
+  lessons(courseId: string) { return this.http.get<Lesson[]>(`${this.root}/api/courses/${courseId}/lessons`); }
+  courseProgress(courseId: string) { return this.http.get<CourseProgress>(`${this.root}/api/courses/${courseId}/progress/me`); }
+  completeLesson(lessonId: string) { return this.http.put<void>(`${this.root}/api/lessons/${lessonId}/progress`, {}); }
+  resetLesson(lessonId: string) { return this.http.delete<void>(`${this.root}/api/lessons/${lessonId}/progress`); }
   profile() { return this.http.get<UserProfile>(`${this.root}/api/users/me`); }
 
   login(email: string, password: string) {

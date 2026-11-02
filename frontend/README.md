@@ -25,6 +25,8 @@ Open `http://localhost:4200`. The API URL is configured in `src/environments/env
 - Student registration, sign-in, and enrollment.
 - Email confirmation page for the link captured by local Mailpit.
 - Forgot-password and reset-password screens.
+- “My Learning” dashboard with enrollment progress, streaks, and recommendations.
+- Enrolled course lesson reading with completion and progress reset.
 
 Registration and password recovery emails are captured in Mailpit at `http://localhost:8025`; local development does not deliver them to real mailboxes.
 
