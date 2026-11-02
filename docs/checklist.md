@@ -49,8 +49,8 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] Text assignments, deadline enforcement, attempt history (`MaxAttempts` defaults to 1), and teacher grading; `AddAssignmentsAndGrading` applied to Compose SQL Server; 66 tests pass (45 integration, 21 unit)
 - [x] Course discussions with replies and teacher/admin moderation; local-day learning streaks; category/popularity course recommendations; 24-hour assignment deadline email reminders; `AddDiscussionsAndDeadlineReminders` applied to Compose SQL Server; 69 tests pass (48 integration, 21 unit)
 - [ ] Student, teacher and admin interfaces
-  - [x] Student dashboard for enrollments, progress, learning streak, and recommendations; enrolled lesson view with progress completion/reset (Angular production build succeeds)
-  - [ ] Student assignments and discussions; teacher course/lesson/assignment management; admin moderation dashboard
+  - [x] Student dashboard, lesson reading/progress, assignment attempts and grade feedback, course discussions/replies (Angular production build succeeds)
+  - [ ] Teacher course/lesson/assignment management and grading; admin moderation dashboard
 - [ ] GitHub Actions CI (build, test, Docker image build)
 
 ## Week 4 - Quality and deployment

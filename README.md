@@ -2,7 +2,7 @@
 
 A secure, production-style online learning platform: students discover courses, enroll, work through lessons and assignments, and track progress; teachers create and grade; administrators moderate.
 
-> **Status: Backend learning workflows are implemented; the Angular student app now includes authentication, catalogue, enrollment, a learning dashboard, lesson reading, and progress tracking. Assignment/discussion screens and teacher/admin interfaces are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
+> **Status: Backend learning workflows are implemented; the Angular student app now includes authentication, catalogue, enrollment, a learning dashboard, lessons/progress, assignments, and course discussions. Teacher and admin interfaces are next.** See [docs/checklist.md](docs/checklist.md) for the live progress list.
 
 ## Roles
 
@@ -134,7 +134,7 @@ cd frontend
 npm start
 ```
 
-Open `http://localhost:4200`. The student experience supports registration, email confirmation through Mailpit, sign-in, password recovery, published-course browsing, enrollment, a “My Learning” dashboard, lesson reading, and progress tracking. Change the API address in `frontend/src/environments/environment.ts` if the API uses a different local URL.
+Open `http://localhost:4200`. The student experience supports registration, email confirmation through Mailpit, sign-in, password recovery, published-course browsing, enrollment, a “My Learning” dashboard, lesson reading/progress, assignment attempts and grading feedback, and course discussions/replies. Change the API address in `frontend/src/environments/environment.ts` if the API uses a different local URL.
 
 The published ports bind to `127.0.0.1`. SQL Server data and captured Mailpit messages use named Docker volumes and survive container recreation. Stop the stack with `docker compose down`; this preserves those volumes. `docker compose down --volumes` deletes the local database and Mailpit data.
 

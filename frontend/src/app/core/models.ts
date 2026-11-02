@@ -80,6 +80,38 @@ export interface RecommendedCourse {
   reason: string;
 }
 
+export interface Assignment {
+  id: string;
+  courseId: string;
+  title: string;
+  instructions: string;
+  dueAtUtc?: string | null;
+  maxAttempts: number;
+  maxScore: number;
+}
+
+export interface AssignmentSubmission {
+  id: string;
+  assignmentId: string;
+  attemptNumber: number;
+  text: string;
+  submittedAtUtc: string;
+  score?: number | null;
+  feedback?: string | null;
+  gradedAtUtc?: string | null;
+}
+
+export interface DiscussionPost {
+  id: string;
+  courseId: string;
+  authorUserId: string;
+  parentPostId?: string | null;
+  body: string;
+  isHidden: boolean;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
 export interface TokenResponse {
   accessToken: string;
   expiresAtUtc: string;
