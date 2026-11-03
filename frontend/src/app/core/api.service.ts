@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Assignment, AssignmentSubmission, Category, Course, CourseProgress, DiscussionPost, Enrollment, LearningStreak, Lesson, MessageResponse, RecommendedCourse, TokenResponse, UserProfile } from './models';
+import { Assignment, AssignmentSubmission, Category, Course, CourseProgress, DiscussionPost, Enrollment, LearningStreak, Lesson, MessageResponse, RecommendedCourse, TeacherAssignmentSubmission, TokenResponse, UserProfile } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -29,6 +29,41 @@ export class ApiService {
   completeLesson(lessonId: string) { return this.http.put<void>(`${this.root}/api/lessons/${lessonId}/progress`, {}); }
   resetLesson(lessonId: string) { return this.http.delete<void>(`${this.root}/api/lessons/${lessonId}/progress`); }
   profile() { return this.http.get<UserProfile>(`${this.root}/api/users/me`); }
+
+  teacherCourses() { return this.http.get<Course[]>(`${this.root}/api/teacher/courses`); }
+  createTeacherCourse(data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description'>) {
+    return this.http.post<Course>(`${this.root}/api/teacher/courses`, data);
+  }
+  updateTeacherCourse(id: string, data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description'>) {
+    return this.http.put<Course>(`${this.root}/api/teacher/courses/${id}`, data);
+  }
+  submitTeacherCourse(id: string) { return this.http.post<Course>(`${this.root}/api/teacher/courses/${id}/submit`, {}); }
+  archiveTeacherCourse(id: string) { return this.http.post<Course>(`${this.root}/api/teacher/courses/${id}/archive`, {}); }
+  teacherLessons(courseId: string) { return this.http.get<Lesson[]>(`${this.root}/api/teacher/courses/${courseId}/lessons`); }
+  createTeacherLesson(courseId: string, data: Pick<Lesson, 'title' | 'content' | 'position'>) {
+    return this.http.post<Lesson>(`${this.root}/api/teacher/courses/${courseId}/lessons`, data);
+  }
+  updateTeacherLesson(id: string, data: Pick<Lesson, 'title' | 'content' | 'position'>) {
+    return this.http.put<Lesson>(`${this.root}/api/teacher/lessons/${id}`, data);
+  }
+  deleteTeacherLesson(id: string) { return this.http.delete<void>(`${this.root}/api/teacher/lessons/${id}`); }
+  teacherAssignments(courseId: string) { return this.http.get<Assignment[]>(`${this.root}/api/teacher/courses/${courseId}/assignments`); }
+  createTeacherAssignment(courseId: string, data: Pick<Assignment, 'title' | 'instructions' | 'dueAtUtc' | 'maxAttempts' | 'maxScore'>) {
+    return this.http.post<Assignment>(`${this.root}/api/teacher/courses/${courseId}/assignments`, data);
+  }
+  updateTeacherAssignment(id: string, data: Pick<Assignment, 'title' | 'instructions' | 'dueAtUtc' | 'maxAttempts' | 'maxScore'>) {
+    return this.http.put<Assignment>(`${this.root}/api/teacher/assignments/${id}`, data);
+  }
+  teacherSubmissions(assignmentId: string) {
+    return this.http.get<TeacherAssignmentSubmission[]>(`${this.root}/api/teacher/assignments/${assignmentId}/submissions`);
+  }
+  gradeTeacherSubmission(id: string, score: number, feedback: string) {
+    return this.http.put<TeacherAssignmentSubmission>(`${this.root}/api/submissions/${id}/grade`, { score, feedback });
+  }
+  teacherDiscussions(courseId: string) { return this.http.get<DiscussionPost[]>(`${this.root}/api/teacher/courses/${courseId}/discussions`); }
+  moderateTeacherDiscussion(id: string, isHidden: boolean, reason: string) {
+    return this.http.put<DiscussionPost>(`${this.root}/api/teacher/discussions/${id}/moderation`, { isHidden, reason: reason || null });
+  }
 
   login(email: string, password: string) {
     return this.http.post<TokenResponse>(`${this.root}/api/auth/login`, { email, password });

@@ -3,9 +3,17 @@
     <span class="brand-mark">N</span><span class="brand-word">nikladori<small>LEARN WITH PURPOSE</small></span>
   </a>
   <nav class="main-nav" aria-label="Main navigation">
-    <a routerLink="/" fragment="courses">Courses</a>
-    <a routerLink="/" fragment="how-it-works">How it works</a>
+    <a routerLink="/courses" routerLinkActive="active">Courses</a>
+    <a routerLink="/how-it-works" routerLinkActive="active">How it works</a>
     @if (auth.user()?.roles?.includes('Student')) { <a routerLink="/my-learning" routerLinkActive="active">My learning</a> }
+    @if (auth.user()?.roles?.includes('Teacher')) { <a routerLink="/teacher" routerLinkActive="active">Teach</a> }
+  </nav>
+  <button class="mobile-nav-toggle" type="button" [attr.aria-expanded]="menuOpen()" aria-controls="mobile-navigation" [attr.aria-label]="menuOpen() ? 'Close navigation' : 'Open navigation'" (click)="menuOpen.update(open => !open)"><span></span><span></span></button>
+  <nav id="mobile-navigation" class="mobile-nav-panel" [class.open]="menuOpen()" aria-label="Mobile navigation">
+    <a routerLink="/courses" (click)="closeMenu()">Courses <span>↗</span></a>
+    <a routerLink="/how-it-works" (click)="closeMenu()">How it works <span>↗</span></a>
+    @if (auth.user()?.roles?.includes('Student')) { <a routerLink="/my-learning" (click)="closeMenu()">My learning <span>↗</span></a> }
+    @if (auth.user()?.roles?.includes('Teacher')) { <a routerLink="/teacher" (click)="closeMenu()">Teacher studio <span>↗</span></a> }
   </nav>
   <div class="header-actions">
     @if (auth.isAuthenticated()) {
@@ -20,5 +28,6 @@
 <router-outlet />
 <footer class="site-footer">
   <a class="brand footer-brand" routerLink="/"><span class="brand-mark">N</span><span class="brand-word">nikladori<small>LEARN WITH PURPOSE</small></span></a>
+  <nav class="footer-links" aria-label="Footer navigation"><a routerLink="/courses">Courses</a><a routerLink="/how-it-works">How it works</a></nav>
   <span>YOUR NEXT CHAPTER STARTS HERE.</span><span>© {{ year }} NIKLADORI</span>
 </footer>

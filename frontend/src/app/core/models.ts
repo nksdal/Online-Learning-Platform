@@ -101,6 +101,11 @@ export interface AssignmentSubmission {
   gradedAtUtc?: string | null;
 }
 
+export interface TeacherAssignmentSubmission extends AssignmentSubmission {
+  studentUserId: string;
+  gradedByUserId?: string | null;
+}
+
 export interface DiscussionPost {
   id: string;
   courseId: string;
@@ -108,6 +113,7 @@ export interface DiscussionPost {
   parentPostId?: string | null;
   body: string;
   isHidden: boolean;
+  moderationReason?: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
 }

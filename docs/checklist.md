@@ -42,6 +42,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] Course draft, submission, admin approval/rejection, teacher resubmission, public published catalogue, and terminal archive; `AddCourses` migration generated and covered by lifecycle tests
 - [x] Lessons and enrollments: teacher lesson management, student enrollment in published courses, enrolled-only lesson access, archive read access; `AddLessonsAndEnrollments` applied to Compose SQL Server; 64 tests pass (43 integration, 21 unit)
 - [x] Angular 21 project, student auth screens, course catalogue/details, and enrollment; production build succeeds
+- [x] Nikladori public home, dedicated Courses and How it works pages; desktop/mobile layout captured with Playwright
 
 ## Week 3 - Learning workflows and features
 
@@ -50,7 +51,8 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] Course discussions with replies and teacher/admin moderation; local-day learning streaks; category/popularity course recommendations; 24-hour assignment deadline email reminders; `AddDiscussionsAndDeadlineReminders` applied to Compose SQL Server; 69 tests pass (48 integration, 21 unit)
 - [ ] Student, teacher and admin interfaces
   - [x] Student dashboard, lesson reading/progress, assignment attempts and grade feedback, course discussions/replies (Angular production build succeeds)
-  - [ ] Teacher course/lesson/assignment management and grading; admin moderation dashboard
+  - [x] Teacher course lifecycle, lesson and assignment editing, submission grading, and discussion moderation UI (production build succeeds; live API workflow still needs a run-through)
+  - [ ] Admin course review, user/category management, and moderation dashboard
 - [ ] GitHub Actions CI (build, test, Docker image build)
 
 ## Week 4 - Quality and deployment
