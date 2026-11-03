@@ -5,7 +5,7 @@
 .assignment-list { display:grid; gap:16px; }
 .assignment-card { padding:clamp(20px,4vw,34px); border:1px solid #e1e6df; background:var(--white); }
 .assignment-heading { display:flex; justify-content:space-between; align-items:start; gap:20px; }
-.assignment-heading h2 { margin:7px 0 0; font:700 22px/1.2 'Manrope',sans-serif; letter-spacing:-.6px; }
+.assignment-heading h2 { margin:7px 0 0; font:700 22px/1.2 'Plus Jakarta Sans',sans-serif; letter-spacing:-.6px; }
 .assignment-score { padding:7px 9px; background:#e8f0e4; color:#496451; font:9px 'DM Mono',monospace; white-space:nowrap; }
 .assignment-instructions { margin:19px 0; color:#53645b; font-size:13px; line-height:1.8; white-space:pre-wrap; }
 .assignment-meta { display:flex; flex-wrap:wrap; gap:20px; padding:12px 0; border-top:1px solid #e9ede7; border-bottom:1px solid #e9ede7; color:var(--muted); font:10px 'DM Mono',monospace; }
@@ -17,12 +17,12 @@
 .attempt-card time,.post-author time { color:var(--muted); font-size:9px; }
 .attempt-card p { margin:11px 0; color:#55665d; font-size:11px; line-height:1.7; white-space:pre-wrap; }
 .grade-line { display:flex; align-items:baseline; gap:12px; padding-top:10px; border-top:1px solid #e6ebe3; }
-.grade-line strong { color:#345e45; font:700 15px 'Manrope',sans-serif; }
+.grade-line strong { color:#345e45; font:700 15px 'Plus Jakarta Sans',sans-serif; }
 .grade-line span,.awaiting-grade { color:var(--muted); font-size:10px; }
 .submission-form { display:grid; gap:9px; margin-top:22px; }
 .submission-form label,.discussion-compose .eyebrow { color:#43564b; font:500 10px 'DM Mono',monospace; letter-spacing:1px; }
-.submission-form textarea,.discussion-compose textarea,.reply-form textarea { width:100%; min-height:92px; padding:12px 13px; resize:vertical; border:1px solid #dbe1d9; border-radius:2px; outline:none; background:#fff; color:var(--ink); font:12px/1.65 'DM Sans',sans-serif; }
-.submission-form textarea:focus,.discussion-compose textarea:focus,.reply-form textarea:focus { border-color:#557d68; box-shadow:0 0 0 3px #c6f36b42; }
+.submission-form textarea,.discussion-compose textarea,.reply-form textarea { width:100%; min-height:92px; padding:12px 13px; resize:vertical; border:1px solid #dbe1d9; border-radius:2px; outline:none; background:#fff; color:var(--ink); font:12px/1.65 'Inter',sans-serif; }
+.submission-form textarea:focus,.discussion-compose textarea:focus,.reply-form textarea:focus { border-color:#557d68; box-shadow:0 0 0 3px #a7f3d042; }
 .submission-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .submission-actions > span { color:var(--muted); font-size:10px; }
 .submission-actions .button { min-height:41px; }
@@ -34,7 +34,7 @@
 .discussion-list { display:grid; gap:12px; }
 .discussion-post > p { margin:15px 0 10px; color:#4e6056; font-size:12px; line-height:1.8; white-space:pre-wrap; }
 .post-author { display:flex; align-items:center; gap:10px; }
-.avatar-mark { width:31px; height:31px; display:grid; place-items:center; border-radius:50%; background:var(--green); color:var(--green-dark); font:700 11px 'Manrope',sans-serif; }
+.avatar-mark { width:31px; height:31px; display:grid; place-items:center; border-radius:50%; background:var(--green); color:var(--green-dark); font:700 11px 'Plus Jakarta Sans',sans-serif; }
 .post-author > div { display:grid; gap:3px; }
 .post-author b { font-size:10px; }
 .discussion-reply { margin:13px 0 0 27px; padding:14px 0 0 16px; border-top:1px solid #edf0eb; border-left:2px solid #d9e5d1; }

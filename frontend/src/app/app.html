@@ -1,9 +1,10 @@
 <header class="site-header">
-  <a class="brand" routerLink="/" aria-label="Open Learning Platform home">
-    <span class="brand-mark">✳</span><span>open<span class="brand-light">learning</span><small>PLATFORM</small></span>
+  <a class="brand" routerLink="/" aria-label="Nikladori home">
+    <span class="brand-mark">N</span><span class="brand-word">nikladori<small>LEARN WITH PURPOSE</small></span>
   </a>
   <nav class="main-nav" aria-label="Main navigation">
-    <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Explore</a>
+    <a routerLink="/" fragment="courses">Courses</a>
+    <a routerLink="/" fragment="how-it-works">How it works</a>
     @if (auth.user()?.roles?.includes('Student')) { <a routerLink="/my-learning" routerLinkActive="active">My learning</a> }
   </nav>
   <div class="header-actions">
@@ -12,12 +13,12 @@
       <button class="sign-in-link" (click)="signOut()">Sign out</button>
     } @else {
       <a class="sign-in-link" routerLink="/login">Sign in</a>
-      <a class="button button-small button-dark" routerLink="/register">Join for free <span>↗</span></a>
+      <a class="button button-small button-dark" routerLink="/register">Get started <span>↗</span></a>
     }
   </div>
 </header>
 <router-outlet />
 <footer class="site-footer">
-  <a class="brand footer-brand" routerLink="/"><span class="brand-mark">✳</span><span>open<span class="brand-light">learning</span><small>PLATFORM</small></span></a>
-  <span>MAKE SPACE FOR WHAT’S NEXT.</span><span>© {{ year }}</span>
+  <a class="brand footer-brand" routerLink="/"><span class="brand-mark">N</span><span class="brand-word">nikladori<small>LEARN WITH PURPOSE</small></span></a>
+  <span>YOUR NEXT CHAPTER STARTS HERE.</span><span>© {{ year }} NIKLADORI</span>
 </footer>
