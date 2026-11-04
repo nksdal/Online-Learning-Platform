@@ -32,6 +32,9 @@ export class ApiService {
   updateProfile(firstName: string, lastName: string, timeZoneId: string) {
     return this.http.put<UserProfile>(`${this.root}/api/users/me/profile`, { firstName, lastName, timeZoneId });
   }
+  requestEmailChange(newEmail: string, currentPassword: string) {
+    return this.http.post<MessageResponse>(`${this.root}/api/users/me/email-change`, { newEmail, currentPassword });
+  }
   uploadProfilePicture(file: File) {
     const body = new FormData();
     body.append('file', file);
@@ -119,6 +122,9 @@ export class ApiService {
   }
   verifyEmail(userId: string, token: string) {
     return this.http.post<MessageResponse>(`${this.root}/api/auth/verify-email`, { userId, token });
+  }
+  confirmEmailChange(userId: string, newEmail: string, token: string) {
+    return this.http.post<MessageResponse>(`${this.root}/api/auth/confirm-email-change`, { userId, newEmail, token });
   }
   forgotPassword(email: string) {
     return this.http.post<MessageResponse>(`${this.root}/api/auth/forgot-password`, { email });

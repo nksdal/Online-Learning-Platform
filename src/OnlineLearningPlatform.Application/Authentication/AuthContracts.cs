@@ -48,6 +48,45 @@ public sealed class ResendVerificationRequestValidator : AbstractValidator<Resen
     }
 }
 
+public sealed record RequestEmailChangeRequest(string NewEmail, string CurrentPassword);
+
+public sealed class RequestEmailChangeRequestValidator : AbstractValidator<RequestEmailChangeRequest>
+{
+    public RequestEmailChangeRequestValidator()
+    {
+        RuleFor(request => request.NewEmail).NotEmpty().EmailAddress().MaximumLength(256);
+        RuleFor(request => request.CurrentPassword).NotEmpty().MaximumLength(256);
+    }
+}
+
+public sealed record ConfirmEmailChangeRequest(Guid UserId, string NewEmail, string Token);
+
+public sealed class ConfirmEmailChangeRequestValidator : AbstractValidator<ConfirmEmailChangeRequest>
+{
+    public ConfirmEmailChangeRequestValidator()
+    {
+        RuleFor(request => request.UserId).NotEmpty();
+        RuleFor(request => request.NewEmail).NotEmpty().EmailAddress().MaximumLength(256);
+        RuleFor(request => request.Token).NotEmpty().MaximumLength(4096);
+    }
+}
+
+public enum EmailChangeRequestOutcome
+{
+    ConfirmationSent,
+    UserNotFound,
+    InvalidPassword,
+    EmailInUse,
+    SameEmail,
+}
+
+public enum EmailChangeConfirmationOutcome
+{
+    Succeeded,
+    InvalidOrExpired,
+    EmailInUse,
+}
+
 public sealed record ForgotPasswordRequest(string Email);
 
 public sealed class ForgotPasswordRequestValidator : AbstractValidator<ForgotPasswordRequest>
@@ -123,6 +162,15 @@ public interface IAuthService
     Task VerifyEmailAsync(VerifyEmailRequest request, CancellationToken cancellationToken);
 
     Task ResendVerificationAsync(ResendVerificationRequest request, CancellationToken cancellationToken);
+
+    Task<EmailChangeRequestOutcome> RequestEmailChangeAsync(
+        Guid userId,
+        RequestEmailChangeRequest request,
+        CancellationToken cancellationToken);
+
+    Task<EmailChangeConfirmationOutcome> ConfirmEmailChangeAsync(
+        ConfirmEmailChangeRequest request,
+        CancellationToken cancellationToken);
 
     Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken);
 

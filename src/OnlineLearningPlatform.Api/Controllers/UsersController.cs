@@ -52,6 +52,34 @@ public sealed class UsersController(
             : Ok(profile);
     }
 
+    [HttpPost("me/email-change")]
+    [ProducesResponseType(typeof(AuthMessageResponse), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RequestMyEmailChange(
+        RequestEmailChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var userId))
+        {
+            return Problem(title: "The access token subject is invalid.", statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        var outcome = await authService.RequestEmailChangeAsync(userId, request, cancellationToken);
+        return outcome switch
+        {
+            EmailChangeRequestOutcome.ConfirmationSent => Accepted(new AuthMessageResponse(
+                "A confirmation link was sent to the new email address. Your current email stays active until you confirm it.")),
+            EmailChangeRequestOutcome.InvalidPassword => Problem(
+                title: "The current password is incorrect.", statusCode: StatusCodes.Status400BadRequest),
+            EmailChangeRequestOutcome.SameEmail => Problem(
+                title: "That is already your current email address.", statusCode: StatusCodes.Status400BadRequest),
+            EmailChangeRequestOutcome.EmailInUse => Problem(
+                title: "That email address is already in use.", statusCode: StatusCodes.Status409Conflict),
+            _ => Problem(title: "The account was not found.", statusCode: StatusCodes.Status404NotFound),
+        };
+    }
+
     [HttpPut("me/profile-picture")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(6 * 1024 * 1024)]

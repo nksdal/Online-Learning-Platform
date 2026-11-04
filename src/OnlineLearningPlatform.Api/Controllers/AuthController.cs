@@ -37,6 +37,22 @@ public sealed class AuthController(IAuthService authService, IWebHostEnvironment
         return Ok(new AuthMessageResponse("If the verification details are valid, the email address is confirmed."));
     }
 
+    [HttpPost("confirm-email-change")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(AuthMessageResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ConfirmEmailChange(
+        ConfirmEmailChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var outcome = await authService.ConfirmEmailChangeAsync(request, cancellationToken);
+        return outcome == EmailChangeConfirmationOutcome.Succeeded
+            ? Ok(new AuthMessageResponse("Your email address is confirmed. Sign in with the new address."))
+            : Problem(
+                title: "The email-change link is invalid, expired, or the address is no longer available.",
+                statusCode: StatusCodes.Status400BadRequest);
+    }
+
     [HttpPost("resend-verification")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(AuthMessageResponse), StatusCodes.Status202Accepted)]

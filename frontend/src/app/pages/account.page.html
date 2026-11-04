@@ -8,8 +8,8 @@
       </div>
     </header>
 
-    @if (error()) { <div class="account-message account-error" role="alert">{{ error() }}</div> }
-    @if (notice()) { <div class="account-message account-success" role="status">{{ notice() }}</div> }
+    @if (error()) { <div class="form-error" role="alert">{{ error() }}</div> }
+    @if (notice()) { <div class="form-notice" role="status">{{ notice() }}</div> }
 
     @if (loading()) {
       <section class="account-loading" role="status">Loading your account…</section>
@@ -57,6 +57,13 @@
               <span>{{ profile()?.email }}</span>
             </div>
           </div>
+          @if (!profile()?.emailConfirmed) {
+            @if (verificationError()) { <div class="form-error" role="alert">{{ verificationError() }}</div> }
+            @if (verificationNotice()) { <div class="form-notice" role="status">{{ verificationNotice() }}</div> }
+            <button class="text-button resend-verification" type="button" (click)="resendVerification()" [disabled]="requestingVerification()">
+              {{ requestingVerification() ? 'Sending…' : 'Resend verification email' }}
+            </button>
+          }
         </aside>
 
         <section class="account-card account-details">
@@ -67,12 +74,6 @@
           </div>
 
           <form [formGroup]="form" (ngSubmit)="saveProfile()" novalidate>
-            <label class="account-field">
-              Email address
-              <input type="email" [value]="profile()?.email" readonly aria-describedby="email-help">
-              <small id="email-help">Email addresses cannot be changed from this page.</small>
-            </label>
-
             <div class="account-field-pair">
               <label class="account-field">
                 First name
@@ -101,11 +102,38 @@
             </label>
 
             <div class="account-form-actions">
-              <button class="button button-dark" type="submit" [disabled]="saving() || form.invalid">
+              <button class="button button-dark" type="submit" [disabled]="saving() || form.invalid || !hasProfileChanges()">
                 {{ saving() ? 'Saving…' : 'Save changes' }} <span>↗</span>
               </button>
             </div>
           </form>
+
+          <section class="account-email-settings" aria-labelledby="email-settings-title">
+            <span class="eyebrow">SIGN-IN DETAILS</span>
+            <h3 id="email-settings-title">Change email address</h3>
+            <p class="current-email">Current email <strong>{{ profile()?.email }}</strong></p>
+            <p class="email-change-help">We’ll send a confirmation link to the new address. Your current email stays active until you confirm it.</p>
+            @if (emailChangeError()) { <div class="form-error" role="alert">{{ emailChangeError() }}</div> }
+            @if (emailChangeNotice()) { <div class="form-notice" role="status">{{ emailChangeNotice() }}</div> }
+            <form [formGroup]="emailForm" (ngSubmit)="requestEmailChange()" novalidate>
+              <label class="account-field">
+                New email address
+                <input type="email" formControlName="newEmail" autocomplete="email" maxlength="256" placeholder="you@example.com">
+                @if (emailForm.controls.newEmail.touched && emailForm.controls.newEmail.invalid) {
+                  <small class="field-error">Enter a valid email address.</small>
+                }
+              </label>
+              <label class="account-field">
+                Current password
+                <input type="password" formControlName="currentPassword" autocomplete="current-password">
+              </label>
+              <div class="account-form-actions">
+                <button class="button button-light" type="submit" [disabled]="requestingEmailChange() || emailForm.invalid">
+                  {{ requestingEmailChange() ? 'Sending…' : 'Send confirmation link' }}
+                </button>
+              </div>
+            </form>
+          </section>
         </section>
       </div>
     }

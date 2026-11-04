@@ -102,6 +102,139 @@ public sealed class AuthService(
         await SendVerificationEmailAsync(user, cancellationToken);
     }
 
+    public async Task<EmailChangeRequestOutcome> RequestEmailChangeAsync(
+        Guid userId,
+        RequestEmailChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null || !user.IsActive)
+        {
+            return EmailChangeRequestOutcome.UserNotFound;
+        }
+
+        if (!await userManager.CheckPasswordAsync(user, request.CurrentPassword))
+        {
+            return EmailChangeRequestOutcome.InvalidPassword;
+        }
+
+        var newEmail = request.NewEmail.Trim();
+        if (string.Equals(user.Email, newEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return EmailChangeRequestOutcome.SameEmail;
+        }
+
+        var existingEmailUser = await userManager.FindByEmailAsync(newEmail);
+        var existingUserName = await userManager.FindByNameAsync(newEmail);
+        if ((existingEmailUser is not null && existingEmailUser.Id != user.Id) ||
+            (existingUserName is not null && existingUserName.Id != user.Id))
+        {
+            return EmailChangeRequestOutcome.EmailInUse;
+        }
+
+        var identityToken = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(identityToken));
+        var confirmationUrl = QueryHelpers.AddQueryString(
+            emailOptions.Value.VerificationPageUrl,
+            new Dictionary<string, string?>
+            {
+                ["emailChange"] = "1",
+                ["userId"] = user.Id.ToString(),
+                ["newEmail"] = newEmail,
+                ["token"] = encodedToken,
+            });
+
+        await emailSender.SendAsync(
+            new EmailMessage(
+                newEmail,
+                "Confirm your new Nikladori email address",
+                $"Confirm your new email address by opening this link: {confirmationUrl}",
+                $"<p>Confirm this email address for your Nikladori account.</p><p><a href=\"{System.Net.WebUtility.HtmlEncode(confirmationUrl)}\">Confirm new email address</a></p><p>If you did not request this, you can ignore this message.</p>"),
+            cancellationToken);
+
+        return EmailChangeRequestOutcome.ConfirmationSent;
+    }
+
+    public async Task<EmailChangeConfirmationOutcome> ConfirmEmailChangeAsync(
+        ConfirmEmailChangeRequest request,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        string identityToken;
+        try
+        {
+            identityToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Token));
+        }
+        catch (FormatException)
+        {
+            return EmailChangeConfirmationOutcome.InvalidOrExpired;
+        }
+
+        var newEmail = request.NewEmail.Trim();
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+            var user = await userManager.FindByIdAsync(request.UserId.ToString());
+            if (user is null || !user.IsActive)
+            {
+                return EmailChangeConfirmationOutcome.InvalidOrExpired;
+            }
+
+            var existingEmailUser = await userManager.FindByEmailAsync(newEmail);
+            var updateUserName = string.Equals(user.UserName, user.Email, StringComparison.OrdinalIgnoreCase);
+            var existingUserName = updateUserName ? await userManager.FindByNameAsync(newEmail) : null;
+            if ((existingEmailUser is not null && existingEmailUser.Id != user.Id) ||
+                (existingUserName is not null && existingUserName.Id != user.Id))
+            {
+                return EmailChangeConfirmationOutcome.EmailInUse;
+            }
+
+            var changeResult = await userManager.ChangeEmailAsync(user, newEmail, identityToken);
+            if (!changeResult.Succeeded)
+            {
+                if (changeResult.Errors.Any(error => error.Code is "DuplicateEmail" or "DuplicateUserName"))
+                {
+                    return EmailChangeConfirmationOutcome.EmailInUse;
+                }
+
+                logger.LogInformation("An email-change confirmation was rejected. Identity error codes: {ErrorCodes}",
+                    string.Join(",", changeResult.Errors.Select(error => error.Code)));
+                return EmailChangeConfirmationOutcome.InvalidOrExpired;
+            }
+
+            if (updateUserName)
+            {
+                var userNameResult = await userManager.SetUserNameAsync(user, newEmail);
+                if (!userNameResult.Succeeded)
+                {
+                    if (userNameResult.Errors.Any(error => error.Code == "DuplicateUserName"))
+                    {
+                        return EmailChangeConfirmationOutcome.EmailInUse;
+                    }
+
+                    var errorCodes = string.Join(",", userNameResult.Errors.Select(error => error.Code));
+                    logger.LogError("Could not update a username after email confirmation. Identity error codes: {ErrorCodes}", errorCodes);
+                    throw new InvalidOperationException("The account sign-in name could not be updated.");
+                }
+            }
+
+            var stampResult = await userManager.UpdateSecurityStampAsync(user);
+            if (!stampResult.Succeeded)
+            {
+                var errorCodes = string.Join(",", stampResult.Errors.Select(error => error.Code));
+                logger.LogError("Could not refresh the security stamp after an email change. Identity error codes: {ErrorCodes}", errorCodes);
+                throw new InvalidOperationException("The email address could not be changed securely.");
+            }
+
+            await RevokeUserSessionsAsync(user.Id, timeProvider.GetUtcNow().UtcDateTime, "EmailChanged", cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return EmailChangeConfirmationOutcome.Succeeded;
+        });
+    }
+
     public async Task ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

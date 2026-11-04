@@ -25,16 +25,7 @@ public sealed class UserManagementService(
             return null;
         }
 
-        var roles = await userManager.GetRolesAsync(user);
-        return new UserProfileResponse(
-            user.Id,
-            user.Email ?? string.Empty,
-            user.FirstName,
-            user.LastName,
-            user.TimeZoneId,
-            user.EmailConfirmed,
-            user.ProfileImageUrl,
-            roles.ToArray());
+        return await ToProfileResponseAsync(user);
     }
 
     public async Task<UserProfileResponse?> UpdateProfileAsync(
@@ -53,7 +44,7 @@ public sealed class UserManagementService(
         user.TimeZoneId = request.TimeZoneId.Trim();
         EnsureIdentitySucceeded(await userManager.UpdateAsync(user), "Could not update the user's profile.");
 
-        return await GetProfileAsync(userId, cancellationToken);
+        return await ToProfileResponseAsync(user);
     }
 
     public async Task<UserProfileResponse?> UploadProfileImageAsync(
@@ -84,7 +75,7 @@ public sealed class UserManagementService(
             await TryDeleteProfileImageAsync(previousPublicId, userId, cancellationToken);
         }
 
-        return await GetProfileAsync(userId, cancellationToken);
+        return await ToProfileResponseAsync(user);
     }
 
     public async Task<UserProfileResponse?> RemoveProfileImageAsync(
@@ -107,7 +98,7 @@ public sealed class UserManagementService(
             await TryDeleteProfileImageAsync(previousPublicId, userId, cancellationToken);
         }
 
-        return await GetProfileAsync(userId, cancellationToken);
+        return await ToProfileResponseAsync(user);
     }
 
     public async Task<PagedAdminUsersResponse> ListUsersAsync(
@@ -277,6 +268,20 @@ public sealed class UserManagementService(
             logger.LogWarning(exception,
                 "Could not clean up Cloudinary profile image for user {UserId}.", userId);
         }
+    }
+
+    private async Task<UserProfileResponse> ToProfileResponseAsync(ApplicationUser user)
+    {
+        var roles = await userManager.GetRolesAsync(user);
+        return new UserProfileResponse(
+            user.Id,
+            user.Email ?? string.Empty,
+            user.FirstName,
+            user.LastName,
+            user.TimeZoneId,
+            user.EmailConfirmed,
+            user.ProfileImageUrl,
+            roles.ToArray());
     }
 
     private async Task<T> ExecuteTransactionAsync<T>(Func<Task<T>> operation, CancellationToken cancellationToken)

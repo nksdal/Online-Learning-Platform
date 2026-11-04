@@ -19,6 +19,8 @@ function getTimeZones(): string[] {
   return [...new Set(['UTC', 'Asia/Tbilisi', local, ...supported].filter(Boolean))].sort();
 }
 
+const TIME_ZONES = getTimeZones();
+
 @Component({
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
@@ -35,10 +37,16 @@ export class AccountPage implements OnInit, OnDestroy {
   readonly profile = signal<UserProfile | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
+  readonly requestingEmailChange = signal(false);
+  readonly requestingVerification = signal(false);
   readonly uploading = signal(false);
   readonly removingPicture = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
+  readonly emailChangeError = signal('');
+  readonly emailChangeNotice = signal('');
+  readonly verificationError = signal('');
+  readonly verificationNotice = signal('');
   readonly selectedPicture = signal<File | null>(null);
   readonly photoPreview = signal<string | null>(null);
   readonly avatarUrl = computed(() => this.photoPreview() ?? this.profile()?.profileImageUrl ?? null);
@@ -48,16 +56,20 @@ export class AccountPage implements OnInit, OnDestroy {
     const last = profile?.lastName?.trim().charAt(0) ?? '';
     return `${first}${last}`.toUpperCase() || 'N';
   });
-  readonly timeZones = getTimeZones();
+  readonly timeZones = TIME_ZONES;
   readonly form = this.fb.nonNullable.group({
-    firstName: ['', [Validators.required, Validators.pattern(/\\S/), Validators.maxLength(100)]],
-    lastName: ['', [Validators.required, Validators.pattern(/\\S/), Validators.maxLength(100)]],
+    firstName: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(100)]],
+    lastName: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(100)]],
     timeZoneId: ['UTC', [Validators.required, Validators.maxLength(64)]],
+  });
+  readonly emailForm = this.fb.nonNullable.group({
+    newEmail: ['', [Validators.required, Validators.email, Validators.maxLength(256)]],
+    currentPassword: ['', [Validators.required, Validators.maxLength(256)]],
   });
 
   async ngOnInit(): Promise<void> {
     try {
-      const profile = await firstValueFrom(this.api.profile());
+      const profile = this.auth.user() ?? await firstValueFrom(this.api.profile());
       this.applyProfile(profile);
     } catch (error) {
       this.error.set(apiMessage(error, 'We could not load your account. Please try again.'));
@@ -89,6 +101,53 @@ export class AccountPage implements OnInit, OnDestroy {
     } finally {
       this.saving.set(false);
     }
+  }
+
+  async requestEmailChange(): Promise<void> {
+    this.emailChangeError.set('');
+    this.emailChangeNotice.set('');
+    if (this.emailForm.invalid) {
+      this.emailForm.markAllAsTouched();
+      return;
+    }
+
+    this.requestingEmailChange.set(true);
+    try {
+      const { newEmail, currentPassword } = this.emailForm.getRawValue();
+      const result = await firstValueFrom(this.api.requestEmailChange(newEmail.trim(), currentPassword));
+      this.emailChangeNotice.set(result.message);
+      this.emailForm.reset({ newEmail: '', currentPassword: '' });
+    } catch (error) {
+      this.emailChangeError.set(apiMessage(error, 'We could not send the confirmation email. Please try again.'));
+    } finally {
+      this.requestingEmailChange.set(false);
+    }
+  }
+
+  async resendVerification(): Promise<void> {
+    const email = this.profile()?.email;
+    if (!email || this.requestingVerification()) return;
+
+    this.verificationError.set('');
+    this.verificationNotice.set('');
+    this.requestingVerification.set(true);
+    try {
+      const result = await firstValueFrom(this.api.resendVerification(email));
+      this.verificationNotice.set(result.message);
+    } catch (error) {
+      this.verificationError.set(apiMessage(error, 'We could not send a verification email. Please try again.'));
+    } finally {
+      this.requestingVerification.set(false);
+    }
+  }
+
+  hasProfileChanges(): boolean {
+    const profile = this.profile();
+    if (!profile) return false;
+    const value = this.form.getRawValue();
+    return value.firstName.trim() !== profile.firstName ||
+      value.lastName.trim() !== profile.lastName ||
+      value.timeZoneId !== profile.timeZoneId;
   }
 
   choosePicture(event: Event): void {
@@ -164,6 +223,8 @@ export class AccountPage implements OnInit, OnDestroy {
       lastName: profile.lastName,
       timeZoneId: profile.timeZoneId,
     });
+    this.form.markAsPristine();
+    this.form.markAsUntouched();
   }
 
   private revokePreview(): void {

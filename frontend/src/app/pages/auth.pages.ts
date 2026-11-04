@@ -47,6 +47,7 @@ export class LoginPage {
   readonly form = this.fb.nonNullable.group({ email: ['', [Validators.required, Validators.email]], password: ['', Validators.required] });
 
   constructor() {
+    if (this.route.snapshot.queryParamMap.get('emailChanged') === '1') this.notice.set('Email address confirmed. Sign in with your new address.');
     if (this.route.snapshot.queryParamMap.get('verified') === '1') this.notice.set('Verification request submitted. Try signing in with your account.');
     if (this.route.snapshot.queryParamMap.get('registered') === '1') this.notice.set('Account created. Check your inbox and spam folder for the verification email.');
   }
@@ -270,23 +271,34 @@ export class ResetPasswordPage implements OnInit {
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <main class="verify-wrap"><div class="verify-symbol">{{ busy() ? '…' : success() ? '✓' : '!' }}</div><span class="eyebrow">EMAIL CONFIRMATION</span><h1>{{ busy() ? 'Confirming your address…' : success() ? 'Request submitted.' : 'We couldn’t submit that link.' }}</h1>
+    <main class="verify-wrap"><div class="verify-symbol">{{ busy() ? '…' : success() ? '✓' : '!' }}</div><span class="eyebrow">EMAIL CONFIRMATION</span><h1>{{ busy() ? 'Confirming your address…' : success() ? (emailChange() ? 'Email address updated.' : 'Request submitted.') : 'We couldn’t submit that link.' }}</h1>
       <p>{{ message() }}</p>
-      @if (success()) { <a class="button button-dark" [routerLink]="['/login']" [queryParams]="{ verified: 1 }">Continue to sign in <span>↗</span></a> }
+      @if (success()) { <a class="button button-dark" [routerLink]="['/login']" [queryParams]="emailChange() ? { emailChanged: 1 } : { verified: 1 }">Continue to sign in <span>↗</span></a> }
       @else if (!busy()) { <a class="button button-dark" routerLink="/register">Create an account <span>↗</span></a> }
     </main>
   `,
 })
 export class VerifyEmailPage implements OnInit {
-  private readonly api = inject(ApiService); private readonly route = inject(ActivatedRoute);
+  private readonly api = inject(ApiService); private readonly route = inject(ActivatedRoute); private readonly auth = inject(AuthService);
   readonly busy = signal(true); readonly success = signal(false); readonly message = signal('');
+  readonly emailChange = signal(false);
   async ngOnInit(): Promise<void> {
     const userId = this.route.snapshot.queryParamMap.get('userId') ?? '';
     const token = this.route.snapshot.queryParamMap.get('token') ?? '';
-    if (!userId || !token) { this.busy.set(false); this.message.set('The verification link is missing information. Request another verification email and try again.'); return; }
+    const newEmail = this.route.snapshot.queryParamMap.get('newEmail') ?? '';
+    const isEmailChange = this.route.snapshot.queryParamMap.get('emailChange') === '1';
+    this.emailChange.set(isEmailChange);
+    if (!userId || !token || (isEmailChange && !newEmail)) { this.busy.set(false); this.message.set('This confirmation link is incomplete. Request a new email-change link and try again.'); return; }
     try {
-      const result = await firstValueFrom(this.api.verifyEmail(userId, token));
-      this.success.set(true); this.message.set(`${result.message} If the link was valid, your address is confirmed. You can try signing in now.`);
+      if (isEmailChange) {
+        const result = await firstValueFrom(this.api.confirmEmailChange(userId, newEmail, token));
+        this.success.set(true);
+        this.message.set(result.message);
+        try { await this.auth.signOut(); } catch { /* The API has already revoked all sessions. */ }
+      } else {
+        const result = await firstValueFrom(this.api.verifyEmail(userId, token));
+        this.success.set(true); this.message.set(`${result.message} If the link was valid, your address is confirmed. You can try signing in now.`);
+      }
     } catch (err) {
       this.message.set(apiMessage(err, 'The link could not be submitted. It may have expired; request another verification email.'));
     } finally { this.busy.set(false); }

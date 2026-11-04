@@ -45,7 +45,7 @@ public sealed class CloudinaryProfileImageStorage(
             throw new InvalidOperationException("Cloudinary returned an incomplete profile image result.");
         }
 
-        return new StoredProfileImage(secureUrl, returnedPublicId);
+        return new StoredProfileImage(CreateOptimizedDeliveryUrl(secureUrl), returnedPublicId);
     }
 
     public async Task DeleteAsync(string publicId, CancellationToken cancellationToken)
@@ -99,6 +99,16 @@ public sealed class CloudinaryProfileImageStorage(
 
     private Uri Endpoint(string action) => new(
         $"https://api.cloudinary.com/v1_1/{Uri.EscapeDataString(_options.CloudName)}/image/{action}");
+
+    private static string CreateOptimizedDeliveryUrl(string secureUrl)
+    {
+        const string uploadPath = "/image/upload/";
+        var uploadIndex = secureUrl.IndexOf(uploadPath, StringComparison.OrdinalIgnoreCase);
+        if (uploadIndex < 0) return secureUrl;
+
+        var insertionPoint = uploadIndex + uploadPath.Length;
+        return secureUrl.Insert(insertionPoint, "f_auto/q_auto/c_fill,h_512,w_512/");
+    }
 
     private void EnsureConfigured()
     {
