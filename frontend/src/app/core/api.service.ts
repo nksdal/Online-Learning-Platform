@@ -80,10 +80,10 @@ export class ApiService {
   }
 
   teacherCourses() { return this.http.get<Course[]>(`${this.root}/api/teacher/courses`); }
-  createTeacherCourse(data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description'>) {
+  createTeacherCourse(data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description' | 'imageUrl'>) {
     return this.http.post<Course>(`${this.root}/api/teacher/courses`, data);
   }
-  updateTeacherCourse(id: string, data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description'>) {
+  updateTeacherCourse(id: string, data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description' | 'imageUrl'>) {
     return this.http.put<Course>(`${this.root}/api/teacher/courses/${id}`, data);
   }
   submitTeacherCourse(id: string) { return this.http.post<Course>(`${this.root}/api/teacher/courses/${id}/submit`, {}); }

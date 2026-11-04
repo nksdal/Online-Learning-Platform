@@ -318,6 +318,10 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .HasMaxLength(10000)
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
                     b.Property<Guid>("InstructorUserId")
                         .HasColumnType("uniqueidentifier");
 

@@ -35,6 +35,7 @@ public sealed class RecommendationService(ApplicationDbContext db) : IRecommenda
                 course.Title,
                 course.Summary,
                 course.CategoryId,
+                course.ImageUrl,
                 popularity.GetValueOrDefault(course.Id),
                 categoryAffinity.ContainsKey(course.CategoryId) ? "Based on your enrolled course categories." : "Popular with learners."))
             .ToArray();

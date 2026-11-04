@@ -24,7 +24,7 @@ import { Course } from '../core/models';
             @if (notice()) { <p class="inline-notice" role="status">{{ notice() }}</p> }
             @if (failure()) { <p class="inline-error" role="alert">{{ failure() }}</p> }
           </div>
-          <div class="detail-visual" aria-hidden="true"><span>FIELD NOTES</span><div class="detail-shape">✳</div><b>LEARN<br>BY DOING</b></div>
+          <div class="detail-visual" [class.has-photo]="item.imageUrl" aria-hidden="true">@if (item.imageUrl) { <img class="detail-photo" [src]="item.imageUrl" alt="" decoding="async"> } @else { <div class="detail-shape">✳</div> }<span>FIELD NOTES</span><b>LEARN<br>BY DOING</b></div>
         </section>
         <section class="detail-body"><div><span class="eyebrow">THE COURSE</span><h2>Make room for what’s next.</h2></div><div class="description">{{ item.description }}</div></section>
         <section class="detail-meta"><span>SELF-PACED LEARNING</span><span>BUILT FOR REAL LIFE</span><span>START WHEN YOU’RE READY</span></section>

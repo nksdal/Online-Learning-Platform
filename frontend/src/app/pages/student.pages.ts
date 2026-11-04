@@ -32,7 +32,7 @@ import { Assignment, AssignmentSubmission, CourseProgress, DiscussionPost, Enrol
             <div class="learning-grid">
               @for (item of enrollments(); track item.id; let index = $index) {
                 <a class="learning-card" [routerLink]="['/learn', item.courseId]">
-                  <div class="learning-card-art" [class]="'learning-card-art art-' + (index % 4)"><span>{{ item.courseStatus === 'Archived' ? 'ARCHIVED COURSE' : 'YOUR COURSE' }}</span><b>{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</b></div>
+                  <div class="learning-card-art" [class]="'learning-card-art art-' + (index % 4) + (item.courseImageUrl ? ' has-photo' : '')">@if (item.courseImageUrl) { <img class="learning-card-photo" [src]="item.courseImageUrl" [alt]="item.courseTitle + ' course photo'" loading="lazy" decoding="async"> }<span>{{ item.courseStatus === 'Archived' ? 'ARCHIVED COURSE' : 'YOUR COURSE' }}</span><b>{{ index + 1 < 10 ? '0' + (index + 1) : index + 1 }}</b></div>
                   <div class="learning-card-content"><h3>{{ item.courseTitle }}</h3><p>{{ item.courseSummary }}</p><div class="progress-copy"><span>{{ progressFor(item.courseId)?.completedLessons ?? 0 }} / {{ progressFor(item.courseId)?.totalLessons ?? 0 }} lessons</span><b>{{ progressFor(item.courseId)?.completionPercentage ?? 0 }}%</b></div><div class="progress-track"><span [style.width.%]="progressFor(item.courseId)?.completionPercentage ?? 0"></span></div><span class="continue-link">{{ item.courseStatus === 'Archived' ? 'Review course' : 'Continue learning' }} <b>↗</b></span></div>
                 </a>
               }
@@ -44,7 +44,7 @@ import { Assignment, AssignmentSubmission, CourseProgress, DiscussionPost, Enrol
           <div class="student-heading"><div><span class="eyebrow">A LITTLE MORE TO EXPLORE</span><h2>Picked for you</h2></div><span class="quiet-label">BASED ON WHAT YOU’RE LEARNING</span></div>
           @if (recommendations().length) {
             <div class="recommendation-grid">@for (item of recommendations(); track item.courseId; let index = $index) {
-              <a class="recommendation-card" [routerLink]="['/courses', item.courseId]"><div [class]="'recommendation-mark art-' + (index % 4)">{{ ['✳', '⌘', '◈'][index % 3] }}</div><span class="eyebrow">{{ item.reason }}</span><h3>{{ item.title }}</h3><p>{{ item.summary }}</p><span class="continue-link">Take a look <b>↗</b></span></a>
+              <a class="recommendation-card" [routerLink]="['/courses', item.courseId]"><div [class]="'recommendation-mark art-' + (index % 4) + (item.imageUrl ? ' has-photo' : '')">@if (item.imageUrl) { <img class="recommendation-photo" [src]="item.imageUrl" [alt]="item.title + ' course photo'" loading="lazy" decoding="async"> } @else { <span>{{ ['✳', '⌘', '◈'][index % 3] }}</span> }</div><span class="eyebrow">{{ item.reason }}</span><h3>{{ item.title }}</h3><p>{{ item.summary }}</p><span class="continue-link">Take a look <b>↗</b></span></a>
             }</div>
           } @else { <div class="recommendations-empty">You’re all caught up. Explore the catalogue for your next course.</div> }
         </section>

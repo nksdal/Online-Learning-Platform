@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddScoped<IRecommendationService, RecommendationService>();
         services.AddScoped<IAssignmentDeadlineReminderProcessor, AssignmentDeadlineReminderProcessor>();
         services.AddHostedService<BootstrapAdminSeeder>();
+        services.AddHostedService<DemoCatalogSeeder>();
         services.AddHostedService<AssignmentDeadlineReminderWorker>();
 
         services.AddOptions<AssignmentDeadlineReminderOptions>()

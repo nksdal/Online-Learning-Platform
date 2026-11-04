@@ -46,7 +46,8 @@ public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) :
     public async Task<CourseResponse> CreateAsync(Guid instructorId, CourseWriteRequest request, CancellationToken ct)
     {
         await EnsureActiveCategoryAsync(request.CategoryId, ct);
-        var course = Course.Create(instructorId, request.CategoryId, request.Title, request.Summary, request.Description);
+        var course = Course.Create(
+            instructorId, request.CategoryId, request.Title, request.Summary, request.Description, request.ImageUrl);
         db.Courses.Add(course);
         AddAudit(instructorId, "CourseCreated", course);
         await db.SaveChangesAsync(ct);
@@ -57,7 +58,7 @@ public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) :
     {
         var course = await GetOwnedAsync(instructorId, courseId, ct);
         await EnsureActiveCategoryAsync(request.CategoryId, ct);
-        course.Update(request.CategoryId, request.Title, request.Summary, request.Description);
+        course.Update(request.CategoryId, request.Title, request.Summary, request.Description, request.ImageUrl);
         AddAudit(instructorId, "CourseUpdated", course);
         await db.SaveChangesAsync(ct);
         return ToResponse(course);
@@ -112,5 +113,6 @@ public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) :
 
     private static CourseResponse ToResponse(Course course) => new(
         course.Id, course.CategoryId, course.InstructorUserId, course.Title, course.Summary,
-        course.Description, course.Status.ToString(), course.RejectionReason, course.CreatedAtUtc, course.UpdatedAtUtc);
+        course.Description, course.ImageUrl, course.Status.ToString(), course.RejectionReason,
+        course.CreatedAtUtc, course.UpdatedAtUtc);
 }

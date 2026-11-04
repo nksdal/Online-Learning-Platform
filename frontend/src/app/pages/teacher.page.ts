@@ -28,7 +28,7 @@ type TeacherTab = 'lessons' | 'assignments' | 'submissions' | 'discussion';
           @if (courseEditorOpen()) {
             <article class="teacher-form-card"><div class="teacher-panel-heading"><div><span class="nik-eyebrow">{{ selectedCourse() ? 'COURSE DETAILS' : 'NEW COURSE' }}</span><h2>{{ selectedCourse() ? 'Edit your course' : 'Start a course' }}</h2></div><button class="teacher-close" type="button" (click)="cancelCourseEdit()" aria-label="Close editor">×</button></div>
               @if (!categories().length) { <p class="teacher-form-help">There are no active categories yet. Ask an administrator to add one before creating a course.</p> }
-              <form (ngSubmit)="saveCourse()"><label>Course title<input name="courseTitle" maxlength="150" required [(ngModel)]="courseDraft.title" placeholder="For example, Creative Coding Basics" /></label><label>Subject<select name="courseCategory" required [(ngModel)]="courseDraft.categoryId"><option value="" disabled>Select a category</option>@for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }</select></label><label>Short summary<input name="courseSummary" maxlength="300" required [(ngModel)]="courseDraft.summary" placeholder="What will learners explore?" /></label><label>Course description<textarea name="courseDescription" maxlength="10000" rows="5" required [(ngModel)]="courseDraft.description" placeholder="Explain the course and what learners can expect."></textarea></label><div class="teacher-form-actions"><button class="teacher-secondary-button" type="button" (click)="cancelCourseEdit()">Cancel</button><button class="nik-button nik-button-navy" [disabled]="saving() || !categories().length">{{ saving() ? 'Saving…' : 'Save draft' }} <span>↗</span></button></div></form>
+              <form (ngSubmit)="saveCourse()"><label>Course title<input name="courseTitle" maxlength="150" required [(ngModel)]="courseDraft.title" placeholder="For example, Creative Coding Basics" /></label><label>Subject<select name="courseCategory" required [(ngModel)]="courseDraft.categoryId"><option value="" disabled>Select a category</option>@for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }</select></label><label>Short summary<input name="courseSummary" maxlength="300" required [(ngModel)]="courseDraft.summary" placeholder="What will learners explore?" /></label><label>Course description<textarea name="courseDescription" maxlength="10000" rows="5" required [(ngModel)]="courseDraft.description" placeholder="Explain the course and what learners can expect."></textarea></label><label>Starter course photo<select name="courseImagePreset" [ngModel]="courseDraft.imageUrl" (ngModelChange)="courseDraft.imageUrl=$event"><option value="">Choose a photo</option><option value="/images/courses/mathematics.jpg">Mathematics</option><option value="/images/courses/science-lab.jpg">Science lab</option><option value="/images/courses/coding.jpg">Coding</option><option value="/images/courses/art.jpg">Art</option><option value="/images/courses/reading.jpg">Reading</option><option value="/images/courses/geography.jpg">Geography</option><option value="/images/courses/space.jpg">Space</option><option value="/images/courses/learning-habits.jpg">Study skills</option><option value="/images/courses/physics.jpg">Physics</option></select></label><label>Or use a custom HTTPS photo URL<input name="courseImageUrl" maxlength="2048" [(ngModel)]="courseDraft.imageUrl" placeholder="https://example.com/course-photo.jpg" /></label>@if (courseDraft.imageUrl) { <img [src]="courseDraft.imageUrl" alt="Course cover preview" style="width:100%;max-height:240px;border-radius:8px;object-fit:cover" /> }<div class="teacher-form-actions"><button class="teacher-secondary-button" type="button" (click)="cancelCourseEdit()">Cancel</button><button class="nik-button nik-button-navy" [disabled]="saving() || !categories().length">{{ saving() ? 'Saving…' : 'Save draft' }} <span>↗</span></button></div></form>
             </article>
           } @else if (selectedCourse(); as course) {
             <header class="teacher-selected-course"><div><span class="nik-eyebrow">COURSE WORKSPACE</span><h2>{{ course.title }}</h2><p>{{ course.summary }}</p></div><div class="teacher-course-actions">
@@ -97,7 +97,7 @@ export class TeacherDashboardPage implements OnInit {
   readonly gradeScores = signal<Record<string, string>>({});
   readonly gradeFeedbacks = signal<Record<string, string>>({});
   readonly moderationReasons = signal<Record<string, string>>({});
-  courseDraft = { categoryId: '', title: '', summary: '', description: '' };
+  courseDraft = { categoryId: '', title: '', summary: '', description: '', imageUrl: '' };
   lessonDraft = { title: '', content: '', position: 1 };
   assignmentDraft = { title: '', instructions: '', dueAtLocal: '', maxAttempts: 1, maxScore: 100 };
 
@@ -118,11 +118,11 @@ export class TeacherDashboardPage implements OnInit {
     this.lessonEditorOpen.set(false); this.assignmentEditorOpen.set(false); this.loadWorkspace(course.id);
   }
   startNewCourse(): void {
-    this.selectedCourse.set(null); this.courseDraft = { categoryId: this.categories()[0]?.id ?? '', title: '', summary: '', description: '' };
+    this.selectedCourse.set(null); this.courseDraft = { categoryId: this.categories()[0]?.id ?? '', title: '', summary: '', description: '', imageUrl: '' };
     this.courseEditorOpen.set(true); this.notice.set('');
   }
   editCourse(course: Course): void {
-    this.selectedCourse.set(course); this.courseDraft = { categoryId: course.categoryId, title: course.title, summary: course.summary, description: course.description };
+    this.selectedCourse.set(course); this.courseDraft = { categoryId: course.categoryId, title: course.title, summary: course.summary, description: course.description, imageUrl: course.imageUrl ?? '' };
     this.courseEditorOpen.set(true); this.notice.set('');
   }
   cancelCourseEdit(): void { this.courseEditorOpen.set(false); }

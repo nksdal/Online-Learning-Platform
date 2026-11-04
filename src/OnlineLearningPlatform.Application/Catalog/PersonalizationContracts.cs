@@ -9,7 +9,7 @@ public sealed record StreakResponse(
     IReadOnlyCollection<DateOnly> RecentLearningDays);
 
 public sealed record RecommendedCourseResponse(
-    Guid CourseId, string Title, string Summary, Guid CategoryId, int EnrollmentCount, string Reason);
+    Guid CourseId, string Title, string Summary, Guid CategoryId, string? ImageUrl, int EnrollmentCount, string Reason);
 
 public interface IStreakService
 {

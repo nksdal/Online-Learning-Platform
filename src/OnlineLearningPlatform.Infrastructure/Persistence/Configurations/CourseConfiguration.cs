@@ -14,6 +14,7 @@ public sealed class CourseConfiguration : IEntityTypeConfiguration<Course>
         builder.Property(course => course.Title).IsRequired().HasMaxLength(Course.TitleMaxLength);
         builder.Property(course => course.Summary).IsRequired().HasMaxLength(Course.SummaryMaxLength);
         builder.Property(course => course.Description).IsRequired().HasMaxLength(Course.DescriptionMaxLength);
+        builder.Property(course => course.ImageUrl).HasMaxLength(Course.ImageUrlMaxLength);
         builder.Property(course => course.Status).HasConversion<string>().HasMaxLength(32).IsRequired();
         builder.Property(course => course.RejectionReason).HasMaxLength(Course.RejectionReasonMaxLength);
         builder.HasOne<Category>().WithMany().HasForeignKey(course => course.CategoryId).OnDelete(DeleteBehavior.Restrict);

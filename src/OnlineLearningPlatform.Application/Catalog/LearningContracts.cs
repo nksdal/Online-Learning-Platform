@@ -6,7 +6,7 @@ public sealed record LessonWriteRequest(string Title, string Content, int Positi
 public sealed record LessonResponse(
     Guid Id, Guid CourseId, string Title, string Content, int Position, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 public sealed record EnrollmentResponse(
-    Guid Id, Guid CourseId, string CourseTitle, string CourseSummary, string CourseStatus, DateTime EnrolledAtUtc);
+    Guid Id, Guid CourseId, string CourseTitle, string CourseSummary, string? CourseImageUrl, string CourseStatus, DateTime EnrolledAtUtc);
 public sealed record LessonProgressItem(Guid LessonId, string Title, int Position, bool IsCompleted, DateTime? CompletedAtUtc);
 public sealed record CourseProgressResponse(
     Guid CourseId, string CourseTitle, string CourseStatus, int TotalLessons, int CompletedLessons,

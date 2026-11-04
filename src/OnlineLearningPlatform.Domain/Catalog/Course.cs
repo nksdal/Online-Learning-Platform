@@ -16,6 +16,7 @@ public sealed class Course : IAuditableEntity
     public const int TitleMaxLength = 150;
     public const int SummaryMaxLength = 300;
     public const int DescriptionMaxLength = 10_000;
+    public const int ImageUrlMaxLength = 2_048;
     public const int RejectionReasonMaxLength = 1_000;
 
     private Course() { }
@@ -24,6 +25,7 @@ public sealed class Course : IAuditableEntity
     public string Title { get; private set; } = string.Empty;
     public string Summary { get; private set; } = string.Empty;
     public string Description { get; private set; } = string.Empty;
+    public string? ImageUrl { get; private set; }
     public Guid CategoryId { get; private set; }
     public Guid InstructorUserId { get; private set; }
     public CourseStatus Status { get; private set; }
@@ -31,16 +33,17 @@ public sealed class Course : IAuditableEntity
     public DateTime CreatedAtUtc { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
 
-    public static Course Create(Guid instructorUserId, Guid categoryId, string title, string summary, string description)
+    public static Course Create(
+        Guid instructorUserId, Guid categoryId, string title, string summary, string description, string? imageUrl = null)
     {
         if (instructorUserId == Guid.Empty) throw new ArgumentException("Instructor is required.", nameof(instructorUserId));
         if (categoryId == Guid.Empty) throw new ArgumentException("Category is required.", nameof(categoryId));
         var course = new Course { Id = Guid.NewGuid(), InstructorUserId = instructorUserId, Status = CourseStatus.Draft };
-        course.Update(categoryId, title, summary, description);
+        course.Update(categoryId, title, summary, description, imageUrl);
         return course;
     }
 
-    public void Update(Guid categoryId, string title, string summary, string description)
+    public void Update(Guid categoryId, string title, string summary, string description, string? imageUrl = null)
     {
         if (Status is CourseStatus.PendingApproval or CourseStatus.Archived)
             throw new InvalidOperationException("This course cannot be edited in its current status.");
@@ -55,6 +58,15 @@ public sealed class Course : IAuditableEntity
         Guard.EnsureMaxLength(Summary, SummaryMaxLength, nameof(summary));
         Guard.EnsureMaxLength(Description, DescriptionMaxLength, nameof(description));
         CategoryId = categoryId;
+        SetImageUrl(imageUrl);
+    }
+
+    public void SetImageUrl(string? imageUrl)
+    {
+        var trimmedImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
+        if (trimmedImageUrl is not null)
+            Guard.EnsureMaxLength(trimmedImageUrl, ImageUrlMaxLength, nameof(imageUrl));
+        ImageUrl = trimmedImageUrl;
     }
 
     public void SubmitForReview()

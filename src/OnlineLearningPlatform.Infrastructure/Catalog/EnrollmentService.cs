@@ -38,5 +38,5 @@ public sealed class EnrollmentService(ApplicationDbContext db, TimeProvider cloc
     }
 
     private static EnrollmentResponse ToResponse(Enrollment enrollment, Course course) => new(
-        enrollment.Id, course.Id, course.Title, course.Summary, course.Status.ToString(), enrollment.EnrolledAtUtc);
+        enrollment.Id, course.Id, course.Title, course.Summary, course.ImageUrl, course.Status.ToString(), enrollment.EnrolledAtUtc);
 }

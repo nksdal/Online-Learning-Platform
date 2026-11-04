@@ -5,6 +5,7 @@ export interface Course {
   title: string;
   summary: string;
   description: string;
+  imageUrl: string | null;
   status: string;
   rejectionReason?: string | null;
   createdAtUtc: string;
@@ -51,6 +52,7 @@ export interface Enrollment {
   courseId: string;
   courseTitle: string;
   courseSummary: string;
+  courseImageUrl: string | null;
   courseStatus: string;
   enrolledAtUtc: string;
 }
@@ -95,6 +97,7 @@ export interface RecommendedCourse {
   title: string;
   summary: string;
   categoryId: string;
+  imageUrl: string | null;
   enrollmentCount: number;
   reason: string;
 }

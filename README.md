@@ -4,6 +4,8 @@ A secure, production-style online learning platform: students discover courses, 
 
 > **Status: Backend learning workflows and Angular student, teacher, and admin interfaces are implemented. Email uses configurable SMTP; Gmail App Password is the local-development setup.** See [docs/checklist.md](docs/checklist.md) for current verification and deployment tasks.
 
+The local Development Compose stack can seed a sample catalog for the first Teacher account: 9 published courses, 45 lessons, and 18 assignments. Set `DEMO_CATALOG_ENABLED=false` in `.env` to turn it off. The sample courses use locally stored Unsplash photos as their covers, so the site does not depend on an external image host to display them. If the database has no Teacher account yet, assign the Teacher role and restart the API to seed the catalog.
+
 ## Roles
 
 | Role | Can do (v1) |
