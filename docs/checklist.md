@@ -22,7 +22,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] Step 5c: unit tests pass (15/15: `RefreshTokenTests`, `LayerDependencyTests`)
 - [x] Step 5d: API pipeline (Serilog, FluentValidation, Problem Details, Swagger with JWT scheme, health checks) - build, 57 tests, and local endpoints verified
 - [ ] .NET runtime updated to the latest 10.0.x patch (machine currently runs 10.0.12; advisories were fixed in 10.0.13)
-- [x] Step 5e: Docker Compose (SQL Server 2025, Mailpit, API, migration job) with health checks - SQL Server, API, and Mailpit healthy; migration job exited successfully
+- [x] Step 5e: Docker Compose (SQL Server 2025, Mailpit, API, migration job) with health checks - SQL Server, API, and Mailpit healthy; migration job exited successfully (original local-email setup)
 - [x] `docs/endpoints.md` endpoint inventory (implemented foundation routes separated from planned routes)
 - [x] `.env.example` with placeholders only
 - [ ] First CI run green (confirmed on GitHub, not assumed)
@@ -32,11 +32,12 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] CORS allow-list for the Angular frontend (`http://localhost:4200` by default; configured origins only)
 - [x] JWT bearer authentication setup (signing key from secrets) and role policies - signed token issuance/validation and anonymous/authorized/role-protected integration checks pass
 - [x] Rate limiting for authentication endpoints (5 requests per minute per IP)
-- [x] Student registration and email verification; messages captured in Mailpit
+- [x] Student registration and email verification; real SMTP provider configured, delivery setup pending
 - [x] Login and short-lived access-token issuance after email confirmation
 - [x] Refresh-token rotation, family reuse detection, logout and logout-all
 - [x] Forgot-password and password reset with email delivery and session revocation
 - [x] Seeded admin from optional deployment secrets with `MustChangePassword`; protected routes require password change
+- [ ] Real transactional email: Resend SMTP wiring is in place; configure a verified sending domain and API key, then verify delivery to a real inbox
 - [x] User and role management (last-active-admin protection, audit log, immediate access-token invalidation)
 - [x] Categories: public active-category list; admin create, edit, activate/deactivate; audit logging; `AddCategories` migration generated; build and 57 tests pass
 - [x] Course draft, submission, admin approval/rejection, teacher resubmission, public published catalogue, and terminal archive; `AddCourses` migration generated and covered by lifecycle tests
@@ -70,7 +71,6 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [~] Video uploads
 - [~] Submission file attachments
 - [~] Advanced statistics dashboard
-- [~] Production email provider (Resend vs Brevo comparison still to do)
 - [~] Full HTTPS deployment (needs a domain or an agreed alternative)
 
 ## Open decisions

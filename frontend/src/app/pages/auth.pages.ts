@@ -39,7 +39,7 @@ export class LoginPage {
 
   constructor() {
     if (this.route.snapshot.queryParamMap.get('verified') === '1') this.notice.set('Verification request submitted. Try signing in with your account.');
-    if (this.route.snapshot.queryParamMap.get('registered') === '1') this.notice.set('Account created. Open the verification email in Mailpit, then confirm your address.');
+    if (this.route.snapshot.queryParamMap.get('registered') === '1') this.notice.set('Account created. Check your inbox and spam folder for the verification email.');
   }
 
   async submit(): Promise<void> {
@@ -130,7 +130,7 @@ export class ChangePasswordPage {
   template: `
     <main class="auth-wrap"><div class="auth-aside"><span class="eyebrow">START WHERE YOU ARE</span><h1>Your next<br>chapter <em>starts here.</em></h1><p>Join a learning community built around steady progress and practical skills.</p><div class="aside-mark">✳</div></div>
       <section class="auth-panel"><a class="back-link" routerLink="/">← Back to courses</a><span class="eyebrow">CREATE YOUR ACCOUNT</span><h2>Join us</h2><p class="auth-intro">A few details, then you’re on your way.</p>
-        @if (sent()) { <div class="form-notice" role="status"><strong>Your account is ready for verification.</strong><br>Open Mailpit at <a href="http://localhost:8025" target="_blank" rel="noreferrer">localhost:8025</a>, open the confirmation message, and follow its link.</div> }
+        @if (sent()) { <div class="form-notice" role="status"><strong>Your account is ready for verification.</strong><br>Check your inbox and spam folder for the confirmation link.</div> }
         @if (error()) { <div class="form-error" role="alert">{{ error() }}</div> }
         @if (!sent()) {
           <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -169,7 +169,7 @@ export class RegisterPage {
   template: `
     <main class="auth-wrap"><div class="auth-aside"><span class="eyebrow">A FRESH START</span><h1>Get back<br>to <em>learning.</em></h1><p>We’ll send a secure reset link to the email on your account.</p><div class="aside-mark">↗</div></div>
       <section class="auth-panel"><a class="back-link" routerLink="/login">← Back to sign in</a><span class="eyebrow">PASSWORD HELP</span><h2>Reset password</h2><p class="auth-intro">Enter the address you used to join.</p>
-        @if (sent()) { <div class="form-notice" role="status">If the request can be completed, the next steps will be sent to that email. In local development, check <a href="http://localhost:8025" target="_blank" rel="noreferrer">Mailpit</a>.</div> }
+        @if (sent()) { <div class="form-notice" role="status">If the request can be completed, a reset link will be sent to that email. Check the inbox and spam folder.</div> }
         @if (error()) { <div class="form-error" role="alert">{{ error() }}</div> }
         @if (!sent()) { <form [formGroup]="form" (ngSubmit)="submit()"><label>Email address<input type="email" formControlName="email" autocomplete="email" placeholder="you@example.com"></label><button class="button button-dark full-button" [disabled]="busy()">{{ busy() ? 'Sending…' : 'Send reset link' }} <span>↗</span></button></form> }
         <div class="auth-foot">WE’LL ONLY SEND A LINK IF THE ACCOUNT IS ELIGIBLE</div>

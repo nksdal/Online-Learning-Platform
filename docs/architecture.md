@@ -23,7 +23,7 @@ flowchart LR
 |---|---|---|
 | **Domain** | Entities, enums, invariants and state rules that need no framework. | `Course` status transitions, `Submission` attempt rules |
 | **Application** | Use cases. Defines the interfaces it needs and the DTOs and validators for its inputs and outputs. | `ICourseService`, `IApplicationDbContext`, `IEmailService`, `ICloudinaryService`, FluentValidation validators |
-| **Infrastructure** | Implements what Application declares, using real technology. | EF Core `DbContext`, Identity stores, Mailpit/HTTP email sender, Cloudinary client, `BackgroundService` jobs |
+| **Infrastructure** | Implements what Application declares, using real technology. | EF Core `DbContext`, Identity stores, SMTP email sender (Resend by default), Cloudinary client, `BackgroundService` jobs |
 | **Api** | HTTP only: controllers, authentication and authorization setup, middleware, Swagger. Controllers stay thin and call Application services. | `AuthController`, exception-handling middleware |
 
 ## 2. Design decisions and trade-offs
