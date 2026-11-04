@@ -72,15 +72,15 @@ services:
       Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
       BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
-      Email__FromAddress: ${EMAIL_FROM_ADDRESS:?Set EMAIL_FROM_ADDRESS to an address on your verified sending domain}
+      Email__FromAddress: ${EMAIL_FROM_ADDRESS:?Set EMAIL_FROM_ADDRESS to your Gmail address in .env}
       Email__FromName: ${EMAIL_FROM_NAME:-Nikladori}
       Email__VerificationPageUrl: ${EMAIL_VERIFICATION_URL:-http://localhost:4200/verify-email}
       Email__PasswordResetPageUrl: ${EMAIL_PASSWORD_RESET_URL:-http://localhost:4200/reset-password}
-      Email__Smtp__Host: ${EMAIL_SMTP_HOST:-smtp.resend.com}
+      Email__Smtp__Host: ${EMAIL_SMTP_HOST:?Set EMAIL_SMTP_HOST in .env}
       Email__Smtp__Port: ${EMAIL_SMTP_PORT:-587}
       Email__Smtp__UseStartTls: ${EMAIL_SMTP_USE_STARTTLS:-true}
-      Email__Smtp__UserName: ${EMAIL_SMTP_USERNAME:-resend}
-      Email__Smtp__Password: ${RESEND_API_KEY:?Set RESEND_API_KEY in .env}
+      Email__Smtp__UserName: ${EMAIL_SMTP_USERNAME:?Set EMAIL_SMTP_USERNAME in .env}
+      Email__Smtp__Password: ${EMAIL_SMTP_PASSWORD:?Set EMAIL_SMTP_PASSWORD to a Gmail App Password in .env}
     ports:
       - "127.0.0.1:${API_HOST_PORT:-5220}:8080"
     depends_on:

@@ -37,7 +37,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] Refresh-token rotation, family reuse detection, logout and logout-all
 - [x] Forgot-password and password reset with email delivery and session revocation
 - [x] Seeded admin from optional deployment secrets with `MustChangePassword`; protected routes require password change
-- [ ] Real transactional email: Resend SMTP wiring is in place; configure a verified sending domain and API key, then verify delivery to a real inbox
+- [ ] Real local email delivery: Gmail SMTP is wired; add an App Password to `.env` and confirm a message reaches a real inbox. Use a dedicated transactional provider before public launch.
 - [x] User and role management (last-active-admin protection, audit log, immediate access-token invalidation)
 - [x] Categories: public active-category list; admin create, edit, activate/deactivate; audit logging; `AddCategories` migration generated; build and 57 tests pass
 - [x] Course draft, submission, admin approval/rejection, teacher resubmission, public published catalogue, and terminal archive; `AddCourses` migration generated and covered by lifecycle tests

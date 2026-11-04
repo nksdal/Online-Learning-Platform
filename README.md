@@ -2,7 +2,7 @@
 
 A secure, production-style online learning platform: students discover courses, enroll, work through lessons and assignments, and track progress; teachers create and grade; administrators moderate.
 
-> **Status: Backend learning workflows and Angular student, teacher, and admin interfaces are implemented. Real email uses configurable SMTP with Resend as the default provider.** See [docs/checklist.md](docs/checklist.md) for current verification and deployment tasks.
+> **Status: Backend learning workflows and Angular student, teacher, and admin interfaces are implemented. Email uses configurable SMTP; Gmail App Password is the local-development setup.** See [docs/checklist.md](docs/checklist.md) for current verification and deployment tasks.
 
 ## Roles
 
@@ -24,7 +24,7 @@ Each user has exactly one role in v1.
 | Validation / logging | FluentValidation, Serilog |
 | API docs | Swagger / OpenAPI via Swashbuckle |
 | Tests | xUnit; in-memory API tests now, Testcontainers with real SQL Server for database workflows *(planned)* |
-| Email | SMTP via MailKit; Resend relay configured by environment variables |
+| Email | SMTP via MailKit; provider settings supplied through environment variables or user-secrets |
 | Containers / CI | Docker, Docker Compose, GitHub Actions *(CI pending)* |
 | Frontend | Angular 21 + TypeScript, in `frontend/` |
 
@@ -74,17 +74,19 @@ dotnet ef database update --project src/OnlineLearningPlatform.Infrastructure --
 
 Run the API (Development environment, uses your local SQL Server Express):
 
-Before sending email, create a Resend account, verify a sending domain, and generate an SMTP/API key. The address in `Email:FromAddress` must use that verified domain. Set secrets without putting them in source files:
+For local email, use a Gmail account and create a Google App Password. Google requires 2-Step Verification for App Passwords. Set secrets without putting them in source files:
 
 ```powershell
 # Run init once per clone; then set the local key.
 dotnet user-secrets init --project src/OnlineLearningPlatform.Api
 dotnet user-secrets set "Authentication:Jwt:SigningKey" "<at-least-32-random-bytes>" --project src/OnlineLearningPlatform.Api
-dotnet user-secrets set "Email:Smtp:UserName" "resend" --project src/OnlineLearningPlatform.Api
-dotnet user-secrets set "Email:Smtp:Password" "<your-resend-api-key>" --project src/OnlineLearningPlatform.Api
-dotnet user-secrets set "Email:FromAddress" "notifications@your-verified-domain.com" --project src/OnlineLearningPlatform.Api
+dotnet user-secrets set "Email:Smtp:UserName" "your-account@gmail.com" --project src/OnlineLearningPlatform.Api
+dotnet user-secrets set "Email:Smtp:Password" "<your-google-app-password>" --project src/OnlineLearningPlatform.Api
+dotnet user-secrets set "Email:FromAddress" "your-account@gmail.com" --project src/OnlineLearningPlatform.Api
 dotnet run --project src/OnlineLearningPlatform.Api
 ```
+
+The local Development profile uses Gmail SMTP: `smtp.gmail.com`, port `587`, with STARTTLS. Use your full Gmail address as both the username and sender address, and the generated App Password—not your normal Google password. See [Google's Gmail SMTP settings](https://support.google.com/mail/answer/7104828) and [App Password instructions](https://support.google.com/accounts/answer/185833).
 
 The signing key is required and must stay out of source control. Docker Compose reads it from the ignored `.env` file instead.
 
@@ -96,9 +98,11 @@ The signing key is required and must stay out of source control. Docker Compose 
 
 ### Run API and SQL Server with real email
 
-Docker Compose starts SQL Server, applies the checked-in EF Core migrations, and runs the API. After the Resend sender credentials and verified domain are configured, transactional email (verification, password recovery, and assignment reminders) goes to real recipients. Mailpit is not used.
+Docker Compose starts SQL Server, applies the checked-in EF Core migrations, and runs the API. Configure Gmail SMTP in `.env` to deliver verification, password-recovery, and assignment-reminder emails to real inboxes. Mailpit is not used.
 
-If `.env` does not exist yet, copy the example environment file. Replace the SQL Server password and JWT key. Create a Resend account, verify a sending domain, add the DNS records Resend provides, and create an SMTP/API key. Put that key in `RESEND_API_KEY` and use a sender address on the verified domain for `EMAIL_FROM_ADDRESS`. Resend's SMTP relay uses host `smtp.resend.com`, port `587`, STARTTLS, username `resend`, and your API key as the password. See [Resend SMTP setup](https://resend.com/changelog/smtp-service) and [Resend pricing](https://resend.com/pricing).
+If `.env` does not exist yet, copy the example environment file. Replace the SQL Server password and JWT key. In your Google Account, turn on 2-Step Verification and create an App Password. Set `EMAIL_FROM_ADDRESS` and `EMAIL_SMTP_USERNAME` to your full Gmail address, and set `EMAIL_SMTP_PASSWORD` to the App Password (remove any spaces shown in Google's display). Gmail SMTP uses `smtp.gmail.com`, port `587`, and STARTTLS. See [Google's Gmail SMTP settings](https://support.google.com/mail/answer/7104828) and [App Password instructions](https://support.google.com/accounts/answer/185833).
+
+Gmail is a convenient local-development sender. Before opening the platform to public users, move to a dedicated transactional email provider and a verified sender domain; that does not require deploying the project now.
 
 Generate a random signing key in PowerShell with:
 

@@ -4,7 +4,7 @@ Angular 21 student-facing foundation for the Online Learning Platform API.
 
 ## Run locally
 
-Start the API and SQL Server from the repository root. Configure Resend SMTP in `.env` first; see the repository README for setup:
+Start the API and SQL Server from the repository root. Configure Gmail SMTP in `.env` first; see the repository README for setup:
 
 ```powershell
 docker compose up --build --detach
