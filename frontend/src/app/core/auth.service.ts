@@ -10,12 +10,13 @@ export class AuthService {
   readonly token = signal<string | null>(this.storedToken);
   readonly user = signal<UserProfile | null>(null);
   readonly isAuthenticated = computed(() => !!this.token());
+  readonly mustChangePassword = computed(() => this.token() ? this.tokenRequiresPasswordChange(this.token()!) : false);
 
   async initialize(): Promise<void> {
     try {
       const response = await firstValueFrom(this.api.refresh());
       this.setToken(response.accessToken);
-      await this.loadProfile();
+      if (!this.mustChangePassword()) await this.loadProfile();
     } catch {
       this.clear();
     }
@@ -24,7 +25,7 @@ export class AuthService {
   async signIn(email: string, password: string): Promise<void> {
     const response = await firstValueFrom(this.api.login(email, password));
     this.setToken(response.accessToken);
-    await this.loadProfile();
+    if (!this.mustChangePassword()) await this.loadProfile();
   }
 
   async loadProfile(): Promise<void> {
@@ -46,5 +47,14 @@ export class AuthService {
     sessionStorage.removeItem('olp_access_token');
     this.token.set(null);
     this.user.set(null);
+  }
+
+  private tokenRequiresPasswordChange(token: string): boolean {
+    try {
+      const payload = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
+      return !!payload && JSON.parse(atob(payload)).must_change_password === 'true';
+    } catch {
+      return false;
+    }
   }
 }

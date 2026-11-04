@@ -27,6 +27,23 @@ export interface UserProfile {
   roles: string[];
 }
 
+export interface AdminUserSummary {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  roles: string[];
+}
+
+export interface AdminUserPage {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  users: AdminUserSummary[];
+}
+
 export interface Enrollment {
   id: string;
   courseId: string;

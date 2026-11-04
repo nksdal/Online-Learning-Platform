@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { Assignment, AssignmentSubmission, Category, Course, CourseProgress, DiscussionPost, Enrollment, LearningStreak, Lesson, MessageResponse, RecommendedCourse, TeacherAssignmentSubmission, TokenResponse, UserProfile } from './models';
+import { AdminUserPage, Assignment, AssignmentSubmission, Category, Course, CourseProgress, DiscussionPost, Enrollment, LearningStreak, Lesson, MessageResponse, RecommendedCourse, TeacherAssignmentSubmission, TokenResponse, UserProfile } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -29,6 +29,41 @@ export class ApiService {
   completeLesson(lessonId: string) { return this.http.put<void>(`${this.root}/api/lessons/${lessonId}/progress`, {}); }
   resetLesson(lessonId: string) { return this.http.delete<void>(`${this.root}/api/lessons/${lessonId}/progress`); }
   profile() { return this.http.get<UserProfile>(`${this.root}/api/users/me`); }
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.http.post<TokenResponse>(`${this.root}/api/users/me/password`, { currentPassword, newPassword });
+  }
+
+  adminUsers(search = '', page = 1, pageSize = 50) {
+    let params = new HttpParams().set('page', page).set('pageSize', pageSize);
+    if (search.trim()) params = params.set('search', search.trim());
+    return this.http.get<AdminUserPage>(`${this.root}/api/admin/users`, { params });
+  }
+  adminChangeUserRole(id: string, role: string) {
+    return this.http.put<void>(`${this.root}/api/admin/users/${id}/role`, { role });
+  }
+  adminSetUserStatus(id: string, isActive: boolean) {
+    return this.http.put<void>(`${this.root}/api/admin/users/${id}/status`, { isActive });
+  }
+  adminCategories() { return this.http.get<Category[]>(`${this.root}/api/admin/categories`); }
+  adminCreateCategory(name: string, description: string) {
+    return this.http.post<Category>(`${this.root}/api/admin/categories`, { name, description });
+  }
+  adminUpdateCategory(id: string, name: string, description: string) {
+    return this.http.put<Category>(`${this.root}/api/admin/categories/${id}`, { name, description });
+  }
+  adminSetCategoryStatus(id: string, isActive: boolean) {
+    return this.http.put<Category>(`${this.root}/api/admin/categories/${id}/status`, { isActive });
+  }
+  adminCourses() { return this.http.get<Course[]>(`${this.root}/api/admin/courses`); }
+  adminPendingCourses() { return this.http.get<Course[]>(`${this.root}/api/admin/courses/pending`); }
+  adminApproveCourse(id: string) { return this.http.post<Course>(`${this.root}/api/admin/courses/${id}/approve`, {}); }
+  adminRejectCourse(id: string, reason: string) {
+    return this.http.post<Course>(`${this.root}/api/admin/courses/${id}/reject`, { reason });
+  }
+  adminCourseDiscussions(id: string) { return this.http.get<DiscussionPost[]>(`${this.root}/api/admin/courses/${id}/discussions`); }
+  adminModerateDiscussion(id: string, isHidden: boolean, reason: string) {
+    return this.http.put<DiscussionPost>(`${this.root}/api/admin/discussions/${id}/moderation`, { isHidden, reason: reason || null });
+  }
 
   teacherCourses() { return this.http.get<Course[]>(`${this.root}/api/teacher/courses`); }
   createTeacherCourse(data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description'>) {

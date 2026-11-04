@@ -52,7 +52,7 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [ ] Student, teacher and admin interfaces
   - [x] Student dashboard, lesson reading/progress, assignment attempts and grade feedback, course discussions/replies (Angular production build succeeds)
   - [x] Teacher course lifecycle, lesson and assignment editing, submission grading, and discussion moderation UI (production build succeeds; live API workflow still needs a run-through)
-  - [ ] Admin course review, user/category management, and moderation dashboard
+  - [x] Admin course review, user/category management, and moderation dashboard (Angular production build succeeds; live privileged workflows still need a run-through)
 - [ ] GitHub Actions CI (build, test, Docker image build)
 
 ## Week 4 - Quality and deployment

@@ -48,10 +48,79 @@ export class LoginPage {
       const { email, password } = this.form.getRawValue();
       await this.auth.signIn(email.trim(), password);
       const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
-      const destination = returnUrl?.startsWith('/') ? returnUrl : this.auth.user()?.roles.includes('Student') ? '/my-learning' : '/';
+      const roles = this.auth.user()?.roles ?? [];
+      const destination = this.auth.mustChangePassword()
+        ? '/change-password'
+        : returnUrl?.startsWith('/') ? returnUrl
+        : roles.includes('Admin') ? '/admin'
+        : roles.includes('Teacher') ? '/teacher'
+        : roles.includes('Student') ? '/my-learning' : '/';
       await this.router.navigateByUrl(destination);
     } catch (err) { this.error.set(apiMessage(err, 'Sign-in failed. Check your email, password, and verification status.')); }
     finally { this.busy.set(false); }
+  }
+}
+
+@Component({
+  standalone: true,
+  imports: [CommonModule, ReactiveFormsModule],
+  template: `
+    <main class="auth-wrap"><div class="auth-aside"><span class="eyebrow">ONE LAST STEP</span><h1>Secure your<br><em>admin account.</em></h1><p>Choose a personal password before continuing to the administrator workspace.</p><div class="aside-mark">✳</div></div>
+      <section class="auth-panel"><span class="eyebrow">PASSWORD UPDATE REQUIRED</span><h2>Set your password</h2><p class="auth-intro">Your temporary password has been used for the first sign-in only.</p>
+        @if (error()) { <div class="form-error" role="alert">{{ error() }}</div> }
+        @if (notice()) { <div class="form-notice" role="status">{{ notice() }}</div> }
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <label>Current password<input type="password" formControlName="currentPassword" autocomplete="current-password"></label>
+          <label>New password<input type="password" formControlName="newPassword" autocomplete="new-password" placeholder="At least 10 characters"><small>Use 10+ characters with uppercase, lowercase, a number, and at least 4 different characters.</small></label>
+          <label>Confirm new password<input type="password" formControlName="confirmPassword" autocomplete="new-password"></label>
+          @if (form.controls.confirmPassword.touched && !passwordsMatch()) { <small class="password-match-error">The new passwords do not match.</small> }
+          @if (form.controls.newPassword.touched && !hasEnoughDistinctCharacters()) { <small class="password-match-error">Use at least four different characters.</small> }
+          <button class="button button-dark full-button" [disabled]="busy() || form.invalid || !passwordsMatch() || !hasEnoughDistinctCharacters()">{{ busy() ? 'Updating password…' : 'Update password' }} <span>↗</span></button>
+        </form>
+        <button class="sign-in-link change-password-signout" type="button" (click)="signOut()">Sign out</button>
+        <div class="auth-foot">YOUR ADMIN ACCOUNT · PROTECTED BY A PERSONAL PASSWORD</div>
+      </section>
+    </main>
+  `,
+})
+export class ChangePasswordPage {
+  private readonly fb = inject(FormBuilder);
+  private readonly api = inject(ApiService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+  readonly busy = signal(false);
+  readonly error = signal('');
+  readonly notice = signal('');
+  readonly form = this.fb.nonNullable.group({
+    currentPassword: ['', Validators.required],
+    newPassword: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(256), Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)]],
+    confirmPassword: ['', Validators.required],
+  });
+
+  passwordsMatch(): boolean {
+    const value = this.form.getRawValue();
+    return value.newPassword === value.confirmPassword;
+  }
+
+  hasEnoughDistinctCharacters(): boolean { return new Set(this.form.controls.newPassword.value).size >= 4; }
+
+  async submit(): Promise<void> {
+    this.error.set(''); this.notice.set(''); this.busy.set(true);
+    try {
+      const value = this.form.getRawValue();
+      const result = await firstValueFrom(this.api.changePassword(value.currentPassword, value.newPassword));
+      this.auth.updateToken(result.accessToken);
+      await this.auth.loadProfile();
+      const roles = this.auth.user()?.roles ?? [];
+      await this.router.navigateByUrl(roles.includes('Admin') ? '/admin' : roles.includes('Teacher') ? '/teacher' : '/my-learning');
+    } catch (err) {
+      this.error.set(apiMessage(err, 'The password could not be updated. Check your current password and new-password requirements.'));
+    } finally { this.busy.set(false); }
+  }
+
+  async signOut(): Promise<void> {
+    await this.auth.signOut();
+    await this.router.navigateByUrl('/login');
   }
 }
 
