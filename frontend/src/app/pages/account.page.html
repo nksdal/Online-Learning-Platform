@@ -1,0 +1,113 @@
+<main class="account-page">
+  <div class="account-shell">
+    <header class="account-heading">
+      <div>
+        <span class="eyebrow">YOUR SPACE</span>
+        <h1>Account</h1>
+        <p>Keep your details current and make this learning space yours.</p>
+      </div>
+    </header>
+
+    @if (error()) { <div class="account-message account-error" role="alert">{{ error() }}</div> }
+    @if (notice()) { <div class="account-message account-success" role="status">{{ notice() }}</div> }
+
+    @if (loading()) {
+      <section class="account-loading" role="status">Loading your account…</section>
+    } @else if (profile()) {
+      <div class="account-grid">
+        <aside class="account-card account-identity">
+          <div class="account-card-heading">
+            <span class="eyebrow">YOUR PROFILE</span>
+            <h2>Make it yours</h2>
+          </div>
+
+          <div class="profile-avatar" aria-label="Profile picture preview">
+            @if (avatarUrl()) {
+              <img [src]="avatarUrl()" alt="Your profile picture">
+            } @else {
+              <span>{{ initials() }}</span>
+            }
+          </div>
+
+          <div class="profile-name">{{ profile()?.firstName }} {{ profile()?.lastName }}</div>
+          <div class="profile-email">{{ profile()?.email }}</div>
+
+          <div class="picture-controls">
+            <input #pictureInput class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" (change)="choosePicture($event)">
+            <button class="button button-light" type="button" (click)="pictureInput.click()" [disabled]="uploading() || removingPicture()">
+              {{ profile()?.profileImageUrl ? 'Choose a new photo' : 'Choose a photo' }}
+            </button>
+            @if (selectedPicture()) {
+              <span class="selected-file">{{ selectedPicture()?.name }}</span>
+              <button class="button button-dark" type="button" (click)="uploadPicture()" [disabled]="uploading()">
+                {{ uploading() ? 'Uploading…' : 'Upload photo' }}
+              </button>
+            } @else if (profile()?.profileImageUrl) {
+              <button class="text-button remove-picture" type="button" (click)="removePicture()" [disabled]="removingPicture()">
+                {{ removingPicture() ? 'Removing…' : 'Remove photo' }}
+              </button>
+            }
+          </div>
+          <p class="image-guidance">JPEG, PNG, or WebP · up to 5 MB</p>
+
+          <div class="verification-status">
+            <span class="verification-dot" [class.verified]="profile()?.emailConfirmed"></span>
+            <div>
+              <strong>{{ profile()?.emailConfirmed ? 'Email verified' : 'Email not verified' }}</strong>
+              <span>{{ profile()?.email }}</span>
+            </div>
+          </div>
+        </aside>
+
+        <section class="account-card account-details">
+          <div class="account-card-heading">
+            <span class="eyebrow">PERSONAL INFORMATION</span>
+            <h2>About you</h2>
+            <p>Update the details shown on your learning profile.</p>
+          </div>
+
+          <form [formGroup]="form" (ngSubmit)="saveProfile()" novalidate>
+            <label class="account-field">
+              Email address
+              <input type="email" [value]="profile()?.email" readonly aria-describedby="email-help">
+              <small id="email-help">Email addresses cannot be changed from this page.</small>
+            </label>
+
+            <div class="account-field-pair">
+              <label class="account-field">
+                First name
+                <input type="text" formControlName="firstName" autocomplete="given-name" maxlength="100">
+                @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+                  <small class="field-error">Enter your first name.</small>
+                }
+              </label>
+              <label class="account-field">
+                Last name
+                <input type="text" formControlName="lastName" autocomplete="family-name" maxlength="100">
+                @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+                  <small class="field-error">Enter your last name.</small>
+                }
+              </label>
+            </div>
+
+            <label class="account-field">
+              Time zone
+              <select formControlName="timeZoneId">
+                @for (timeZone of timeZones; track timeZone) {
+                  <option [value]="timeZone">{{ timeZone }}</option>
+                }
+              </select>
+              <small>Used to show learning dates and deadlines in your local time.</small>
+            </label>
+
+            <div class="account-form-actions">
+              <button class="button button-dark" type="submit" [disabled]="saving() || form.invalid">
+                {{ saving() ? 'Saving…' : 'Save changes' }} <span>↗</span>
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+    }
+  </div>
+</main>

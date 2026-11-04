@@ -29,6 +29,17 @@ export class ApiService {
   completeLesson(lessonId: string) { return this.http.put<void>(`${this.root}/api/lessons/${lessonId}/progress`, {}); }
   resetLesson(lessonId: string) { return this.http.delete<void>(`${this.root}/api/lessons/${lessonId}/progress`); }
   profile() { return this.http.get<UserProfile>(`${this.root}/api/users/me`); }
+  updateProfile(firstName: string, lastName: string, timeZoneId: string) {
+    return this.http.put<UserProfile>(`${this.root}/api/users/me/profile`, { firstName, lastName, timeZoneId });
+  }
+  uploadProfilePicture(file: File) {
+    const body = new FormData();
+    body.append('file', file);
+    return this.http.put<UserProfile>(`${this.root}/api/users/me/profile-picture`, body);
+  }
+  removeProfilePicture() {
+    return this.http.delete<UserProfile>(`${this.root}/api/users/me/profile-picture`);
+  }
   changePassword(currentPassword: string, newPassword: string) {
     return this.http.post<TokenResponse>(`${this.root}/api/users/me/password`, { currentPassword, newPassword });
   }

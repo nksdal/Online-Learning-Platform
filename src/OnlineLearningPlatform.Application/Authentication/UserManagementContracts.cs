@@ -9,7 +9,23 @@ public sealed record UserProfileResponse(
     string FirstName,
     string LastName,
     string TimeZoneId,
+    bool EmailConfirmed,
+    string? ProfileImageUrl,
     IReadOnlyCollection<string> Roles);
+
+public sealed record UpdateUserProfileRequest(string FirstName, string LastName, string TimeZoneId);
+
+public sealed class UpdateUserProfileRequestValidator : AbstractValidator<UpdateUserProfileRequest>
+{
+    public UpdateUserProfileRequestValidator()
+    {
+        RuleFor(request => request.FirstName).NotEmpty().Must(name => !string.IsNullOrWhiteSpace(name))
+            .MaximumLength(ApplicationUser.NameMaxLength);
+        RuleFor(request => request.LastName).NotEmpty().Must(name => !string.IsNullOrWhiteSpace(name))
+            .MaximumLength(ApplicationUser.NameMaxLength);
+        RuleFor(request => request.TimeZoneId).NotEmpty().MaximumLength(ApplicationUser.TimeZoneIdMaxLength);
+    }
+}
 
 public sealed record AdminUserSummary(
     Guid Id,
@@ -63,6 +79,19 @@ public enum UserManagementOutcome
 public interface IUserManagementService
 {
     Task<UserProfileResponse?> GetProfileAsync(Guid userId, CancellationToken cancellationToken);
+
+    Task<UserProfileResponse?> UpdateProfileAsync(
+        Guid userId,
+        UpdateUserProfileRequest request,
+        CancellationToken cancellationToken);
+
+    Task<UserProfileResponse?> UploadProfileImageAsync(
+        Guid userId,
+        string fileName,
+        Stream content,
+        CancellationToken cancellationToken);
+
+    Task<UserProfileResponse?> RemoveProfileImageAsync(Guid userId, CancellationToken cancellationToken);
 
     Task<PagedAdminUsersResponse> ListUsersAsync(AdminUserListQuery query, CancellationToken cancellationToken);
 

@@ -104,6 +104,8 @@ If `.env` does not exist yet, copy the example environment file. Replace the SQL
 
 Gmail is a convenient local-development sender. Before opening the platform to public users, move to a dedicated transactional email provider and a verified sender domain; that does not require deploying the project now.
 
+Signed-in users can manage their name and time zone at `/account`. The sign-in and registration screens include a resend-verification action for users who did not receive the first email. Profile pictures use Cloudinary: create a Cloudinary account and set `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` in the ignored `.env` file. Leave them blank to keep the rest of the app running; photo uploads return a clear unavailable response until all three values are configured. Compose passes the credentials only to the API, and the API secret is never sent to the browser.
+
 Generate a random signing key in PowerShell with:
 
 ```powershell

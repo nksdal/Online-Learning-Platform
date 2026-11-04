@@ -11,6 +11,7 @@ using OnlineLearningPlatform.Infrastructure.Catalog;
 using OnlineLearningPlatform.Infrastructure.Email;
 using OnlineLearningPlatform.Domain.Identity;
 using OnlineLearningPlatform.Infrastructure.Health;
+using OnlineLearningPlatform.Infrastructure.Storage;
 using OnlineLearningPlatform.Infrastructure.Persistence;
 
 namespace OnlineLearningPlatform.Infrastructure;
@@ -43,6 +44,7 @@ public static class DependencyInjection
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserManagementService, UserManagementService>();
+        services.AddHttpClient<IProfileImageStorage, CloudinaryProfileImageStorage>();
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<ILessonService, LessonService>();
@@ -83,6 +85,8 @@ public static class DependencyInjection
                                  string.IsNullOrEmpty(resetUri.UserInfo),
                 "Email password reset page URL must be an absolute HTTP or HTTPS URL without user information.")
             .ValidateOnStart();
+        services.AddOptions<CloudinaryOptions>()
+            .BindConfiguration(CloudinaryOptions.SectionName);
         services.TryAddTransient<IEmailSender, MailKitEmailSender>();
         services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(3));
 

@@ -12,6 +12,8 @@ public class ApplicationUser : IdentityUser<Guid>, IAuditableEntity
 {
     public const int NameMaxLength = 100;
     public const int TimeZoneIdMaxLength = 64;
+    public const int ProfileImageUrlMaxLength = 2048;
+    public const int ProfileImagePublicIdMaxLength = 255;
     public const string DefaultTimeZoneId = "UTC";
 
     public string FirstName { get; set; } = string.Empty;
@@ -20,6 +22,12 @@ public class ApplicationUser : IdentityUser<Guid>, IAuditableEntity
 
     /// <summary>IANA time-zone id (for example "Asia/Tbilisi"). Decides what a "learning day" is.</summary>
     public string TimeZoneId { get; set; } = DefaultTimeZoneId;
+
+    /// <summary>HTTPS delivery URL for the user's Cloudinary profile image.</summary>
+    public string? ProfileImageUrl { get; set; }
+
+    /// <summary>Cloudinary public id used to remove the user's profile image.</summary>
+    public string? ProfileImagePublicId { get; set; }
 
     /// <summary>False = suspended. Suspended users are rejected even if they hold a valid access token.</summary>
     public bool IsActive { get; set; } = true;

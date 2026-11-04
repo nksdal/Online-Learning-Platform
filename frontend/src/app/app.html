@@ -16,10 +16,18 @@
     @if (auth.user()?.roles?.includes('Student')) { <a routerLink="/my-learning" (click)="closeMenu()">My learning <span>↗</span></a> }
     @if (auth.user()?.roles?.includes('Teacher')) { <a routerLink="/teacher" (click)="closeMenu()">Teacher studio <span>↗</span></a> }
     @if (auth.user()?.roles?.includes('Admin')) { <a routerLink="/admin" (click)="closeMenu()">Admin workspace <span>↗</span></a> }
+    @if (auth.isAuthenticated()) { <a routerLink="/account" (click)="closeMenu()">Your account <span>↗</span></a> }
   </nav>
   <div class="header-actions">
     @if (auth.isAuthenticated()) {
       <span class="user-greeting">{{ auth.user()?.firstName || 'Learner' }}</span>
+      <a class="header-account" routerLink="/account" aria-label="Your account" title="Your account">
+        @if (auth.user()?.profileImageUrl; as avatarUrl) {
+          <img [src]="avatarUrl" alt="">
+        } @else {
+          <span>{{ auth.user()?.firstName?.charAt(0) || 'N' }}</span>
+        }
+      </a>
       <button class="sign-in-link" (click)="signOut()">Sign out</button>
     } @else {
       <a class="sign-in-link" routerLink="/login">Sign in</a>

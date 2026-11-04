@@ -29,8 +29,10 @@ export class AuthService {
   }
 
   async loadProfile(): Promise<void> {
-    this.user.set(await firstValueFrom(this.api.profile()));
+    this.setProfile(await firstValueFrom(this.api.profile()));
   }
+
+  setProfile(profile: UserProfile): void { this.user.set(profile); }
 
   async signOut(): Promise<void> {
     try { await firstValueFrom(this.api.logout()); } finally { this.clear(); }

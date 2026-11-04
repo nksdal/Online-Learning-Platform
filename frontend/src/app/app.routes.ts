@@ -8,11 +8,13 @@ import { CoursesPage, HowItWorksPage } from './pages/info.pages';
 import { TeacherDashboardPage } from './pages/teacher.page';
 import { teacherGuard } from './core/teacher.guard';
 import { adminGuard, changePasswordGuard } from './core/admin.guard';
+import { authenticatedGuard } from './core/authenticated.guard';
 
 export const routes: Routes = [
   { path: '', component: CatalogPage, title: 'Nikladori · Learn with purpose' },
   { path: 'courses', component: CoursesPage, title: 'Explore courses · Nikladori' },
   { path: 'how-it-works', component: HowItWorksPage, title: 'How it works · Nikladori' },
+  { path: 'account', loadComponent: () => import('./pages/account.page').then(module => module.AccountPage), canActivate: [authenticatedGuard], title: 'Your account · Nikladori' },
   { path: 'courses/:id', component: CourseDetailPage, title: 'Course · Nikladori' },
   { path: 'teacher', component: TeacherDashboardPage, canActivate: [teacherGuard], title: 'Teacher studio · Nikladori' },
   { path: 'admin', loadComponent: () => import('./pages/admin.page').then(module => module.AdminDashboardPage), canActivate: [adminGuard], title: 'Admin workspace · Nikladori' },

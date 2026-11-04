@@ -24,6 +24,8 @@ export interface UserProfile {
   firstName: string;
   lastName: string;
   timeZoneId: string;
+  emailConfirmed: boolean;
+  profileImageUrl: string | null;
   roles: string[];
 }
 

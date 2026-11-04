@@ -81,6 +81,9 @@ services:
       Email__Smtp__UseStartTls: ${EMAIL_SMTP_USE_STARTTLS:-true}
       Email__Smtp__UserName: ${EMAIL_SMTP_USERNAME:?Set EMAIL_SMTP_USERNAME in .env}
       Email__Smtp__Password: ${EMAIL_SMTP_PASSWORD:?Set EMAIL_SMTP_PASSWORD to a Gmail App Password in .env}
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
     ports:
       - "127.0.0.1:${API_HOST_PORT:-5220}:8080"
     depends_on:

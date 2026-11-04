@@ -23,6 +23,13 @@ function apiMessage(error: any, fallback: string): string {
           <label>Password<input type="password" formControlName="password" autocomplete="current-password" placeholder="Your password"></label>
           <button class="button button-dark full-button" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Sign in' }} <span>↗</span></button>
         </form>
+        <div class="resend-verification">
+          <span>Didn't receive the confirmation email?</span>
+          <button type="button" class="text-button" [disabled]="resendBusy() || form.controls.email.invalid" (click)="resendVerification()">
+            {{ resendBusy() ? 'Sending…' : 'Resend verification email' }}
+          </button>
+          @if (resendMessage()) { <p role="status">{{ resendMessage() }}</p> }
+        </div>
         <div class="auth-links"><a routerLink="/forgot-password">Forgot password?</a><span>New here? <a routerLink="/register">Create an account</a></span></div>
         <div class="auth-foot">SECURE SIGN-IN · YOUR LEARNING IS YOURS</div>
       </section>
@@ -32,9 +39,11 @@ function apiMessage(error: any, fallback: string): string {
 export class LoginPage {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
+  private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   readonly busy = signal(false); readonly error = signal(''); readonly notice = signal('');
+  readonly resendBusy = signal(false); readonly resendMessage = signal('');
   readonly form = this.fb.nonNullable.group({ email: ['', [Validators.required, Validators.email]], password: ['', Validators.required] });
 
   constructor() {
@@ -58,6 +67,21 @@ export class LoginPage {
       await this.router.navigateByUrl(destination);
     } catch (err) { this.error.set(apiMessage(err, 'Sign-in failed. Check your email, password, and verification status.')); }
     finally { this.busy.set(false); }
+  }
+
+  async resendVerification(): Promise<void> {
+    const email = this.form.controls.email.value.trim();
+    if (this.form.controls.email.invalid || !email) return;
+    this.resendBusy.set(true);
+    this.resendMessage.set('');
+    try {
+      await firstValueFrom(this.api.resendVerification(email));
+      this.resendMessage.set('If this account needs verification, a new email will arrive shortly. Check your inbox and spam folder.');
+    } catch {
+      this.resendMessage.set('We could not submit the request just now. Please wait a moment and try again.');
+    } finally {
+      this.resendBusy.set(false);
+    }
   }
 }
 
@@ -130,7 +154,16 @@ export class ChangePasswordPage {
   template: `
     <main class="auth-wrap"><div class="auth-aside"><span class="eyebrow">START WHERE YOU ARE</span><h1>Your next<br>chapter <em>starts here.</em></h1><p>Join a learning community built around steady progress and practical skills.</p><div class="aside-mark">✳</div></div>
       <section class="auth-panel"><a class="back-link" routerLink="/">← Back to courses</a><span class="eyebrow">CREATE YOUR ACCOUNT</span><h2>Join us</h2><p class="auth-intro">A few details, then you’re on your way.</p>
-        @if (sent()) { <div class="form-notice" role="status"><strong>Your account is ready for verification.</strong><br>Check your inbox and spam folder for the confirmation link.</div> }
+        @if (sent()) {
+          <div class="form-notice" role="status"><strong>Your account is ready for verification.</strong><br>Check your inbox and spam folder for the confirmation link.</div>
+          <div class="resend-verification">
+            <span>Didn't receive it?</span>
+            <button type="button" class="text-button" [disabled]="resendBusy()" (click)="resendVerification()">
+              {{ resendBusy() ? 'Sending…' : 'Resend verification email' }}
+            </button>
+            @if (resendMessage()) { <p role="status">{{ resendMessage() }}</p> }
+          </div>
+        }
         @if (error()) { <div class="form-error" role="alert">{{ error() }}</div> }
         @if (!sent()) {
           <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
@@ -148,6 +181,7 @@ export class ChangePasswordPage {
 export class RegisterPage {
   private readonly fb = inject(FormBuilder); private readonly api = inject(ApiService);
   readonly busy = signal(false); readonly error = signal(''); readonly sent = signal(false);
+  readonly resendBusy = signal(false); readonly resendMessage = signal('');
   readonly form = this.fb.nonNullable.group({
     firstName: ['', [Validators.required, Validators.maxLength(100)]], lastName: ['', [Validators.required, Validators.maxLength(100)]],
     email: ['', [Validators.required, Validators.email]], password: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(256)]],
@@ -160,6 +194,21 @@ export class RegisterPage {
       this.sent.set(true);
     } catch (err) { this.error.set(apiMessage(err, 'We couldn’t create this account. Check the details and try again.')); }
     finally { this.busy.set(false); }
+  }
+
+  async resendVerification(): Promise<void> {
+    const email = this.form.controls.email.value.trim();
+    if (!email) return;
+    this.resendBusy.set(true);
+    this.resendMessage.set('');
+    try {
+      await firstValueFrom(this.api.resendVerification(email));
+      this.resendMessage.set('If this account needs verification, a new email will arrive shortly. Check your inbox and spam folder.');
+    } catch {
+      this.resendMessage.set('We could not submit the request just now. Please wait a moment and try again.');
+    } finally {
+      this.resendBusy.set(false);
+    }
   }
 }
 

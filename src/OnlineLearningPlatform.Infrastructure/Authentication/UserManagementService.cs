@@ -1,7 +1,9 @@
 using System.Data;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OnlineLearningPlatform.Application.Authentication;
+using OnlineLearningPlatform.Application.Abstractions;
 using OnlineLearningPlatform.Domain.Auditing;
 using OnlineLearningPlatform.Domain.Identity;
 using OnlineLearningPlatform.Infrastructure.Persistence;
@@ -11,7 +13,9 @@ namespace OnlineLearningPlatform.Infrastructure.Authentication;
 public sealed class UserManagementService(
     UserManager<ApplicationUser> userManager,
     ApplicationDbContext dbContext,
-    TimeProvider timeProvider) : IUserManagementService
+    TimeProvider timeProvider,
+    IProfileImageStorage profileImageStorage,
+    ILogger<UserManagementService> logger) : IUserManagementService
 {
     public async Task<UserProfileResponse?> GetProfileAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -28,7 +32,82 @@ public sealed class UserManagementService(
             user.FirstName,
             user.LastName,
             user.TimeZoneId,
+            user.EmailConfirmed,
+            user.ProfileImageUrl,
             roles.ToArray());
+    }
+
+    public async Task<UserProfileResponse?> UpdateProfileAsync(
+        Guid userId,
+        UpdateUserProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        user.FirstName = request.FirstName.Trim();
+        user.LastName = request.LastName.Trim();
+        user.TimeZoneId = request.TimeZoneId.Trim();
+        EnsureIdentitySucceeded(await userManager.UpdateAsync(user), "Could not update the user's profile.");
+
+        return await GetProfileAsync(userId, cancellationToken);
+    }
+
+    public async Task<UserProfileResponse?> UploadProfileImageAsync(
+        Guid userId,
+        string fileName,
+        Stream content,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        var uploaded = await profileImageStorage.UploadAsync(userId, fileName, content, cancellationToken);
+        var previousPublicId = user.ProfileImagePublicId;
+        user.ProfileImageUrl = uploaded.SecureUrl;
+        user.ProfileImagePublicId = uploaded.PublicId;
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            await TryDeleteProfileImageAsync(uploaded.PublicId, userId, cancellationToken);
+            EnsureIdentitySucceeded(updateResult, "Could not update the user's profile image.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(previousPublicId))
+        {
+            await TryDeleteProfileImageAsync(previousPublicId, userId, cancellationToken);
+        }
+
+        return await GetProfileAsync(userId, cancellationToken);
+    }
+
+    public async Task<UserProfileResponse?> RemoveProfileImageAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return null;
+        }
+
+        var previousPublicId = user.ProfileImagePublicId;
+        user.ProfileImageUrl = null;
+        user.ProfileImagePublicId = null;
+        EnsureIdentitySucceeded(await userManager.UpdateAsync(user), "Could not remove the user's profile image.");
+
+        if (!string.IsNullOrWhiteSpace(previousPublicId))
+        {
+            await TryDeleteProfileImageAsync(previousPublicId, userId, cancellationToken);
+        }
+
+        return await GetProfileAsync(userId, cancellationToken);
     }
 
     public async Task<PagedAdminUsersResponse> ListUsersAsync(
@@ -181,6 +260,22 @@ public sealed class UserManagementService(
         foreach (var token in tokens)
         {
             token.Revoke(now, reason);
+        }
+    }
+
+    private async Task TryDeleteProfileImageAsync(
+        string publicId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await profileImageStorage.DeleteAsync(publicId, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Could not clean up Cloudinary profile image for user {UserId}.", userId);
         }
     }
 
