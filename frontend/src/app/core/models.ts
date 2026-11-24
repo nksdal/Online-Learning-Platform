@@ -1,3 +1,5 @@
+export type CourseDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+
 export interface Course {
   id: string;
   categoryId: string;
@@ -6,6 +8,10 @@ export interface Course {
   summary: string;
   description: string;
   imageUrl: string | null;
+  duration: string;
+  price: number;
+  difficulty: CourseDifficulty;
+  prerequisites: string | null;
   status: string;
   rejectionReason?: string | null;
   createdAtUtc: string;
@@ -81,6 +87,7 @@ export interface Lesson {
   title: string;
   content: string;
   position: number;
+  videoUrl?: string | null;
 }
 
 export interface LearningStreak {
@@ -121,6 +128,49 @@ export interface AssignmentSubmission {
   score?: number | null;
   feedback?: string | null;
   gradedAtUtc?: string | null;
+  attachmentUrl?: string | null;
+  attachmentFileName?: string | null;
+  attachmentContentType?: string | null;
+  attachmentSizeBytes?: number | null;
+}
+
+export interface AdminAnalyticsMonth {
+  monthStartUtc: string;
+  newUsers: number;
+  enrollments: number;
+  submissions: number;
+}
+
+export interface AdminAnalyticsCourse {
+  courseId: string;
+  title: string;
+  status: string;
+  enrollments: number;
+  completionPercentage: number;
+}
+
+export interface AdminAnalytics {
+  generatedAtUtc: string;
+  rangeDays: number;
+  rangeStartUtc: string;
+  totalUsers: number;
+  activeUsers: number;
+  students: number;
+  teachers: number;
+  totalCourses: number;
+  publishedCourses: number;
+  pendingCourses: number;
+  archivedCourses: number;
+  totalEnrollments: number;
+  completionPercentage: number;
+  newUsersInRange: number;
+  enrollmentsInRange: number;
+  submissionsInRange: number;
+  totalSubmissions: number;
+  gradedSubmissions: number;
+  averageGrade: number | null;
+  monthlyActivity: AdminAnalyticsMonth[];
+  topCourses: AdminAnalyticsCourse[];
 }
 
 export interface TeacherAssignmentSubmission extends AssignmentSubmission {
@@ -138,6 +188,13 @@ export interface DiscussionPost {
   moderationReason?: string | null;
   createdAtUtc: string;
   updatedAtUtc: string;
+}
+
+export interface DiscussionPostsPage {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  items: DiscussionPost[];
 }
 
 export interface TokenResponse {

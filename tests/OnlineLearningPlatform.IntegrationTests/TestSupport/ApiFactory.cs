@@ -44,4 +44,19 @@ public class ApiFactory : WebApplicationFactory<Program>
 public sealed class ProductionApiFactory : ApiFactory
 {
     protected override string EnvironmentName => "Production";
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AllowedHosts"] = "api.nikladori.ge",
+                ["Cors:AllowedOrigins:0"] = "https://app.nikladori.ge",
+                ["Email:AppUrl"] = "https://app.nikladori.ge",
+                ["ConnectionStrings:DefaultConnection"] =
+                    "Server=127.0.0.1,1;Database=OnlineLearningPlatform;User Id=olp_app;" +
+                    "Password=unused-test-value;Encrypt=True;TrustServerCertificate=False",
+            }));
+    }
 }

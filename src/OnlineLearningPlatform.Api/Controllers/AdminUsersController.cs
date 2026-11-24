@@ -13,11 +13,35 @@ namespace OnlineLearningPlatform.Api.Controllers;
 public sealed class AdminUsersController(IUserManagementService userManagement) : ControllerBase
 {
     [HttpGet]
+    [HttpGet("/api/users")]
     [ProducesResponseType(typeof(PagedAdminUsersResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> List([FromQuery] AdminUserListQuery query, CancellationToken cancellationToken)
     {
         var response = await userManagement.ListUsersAsync(query, cancellationToken);
         return Ok(response);
+    }
+
+    [HttpGet("/api/users/{id:guid}")]
+    [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var profile = await userManagement.GetProfileAsync(id, cancellationToken);
+        return profile is null
+            ? Problem(title: "The user was not found.", statusCode: StatusCodes.Status404NotFound)
+            : Ok(profile);
+    }
+
+    [HttpPut("/api/users/{id:guid}")]
+    [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateById(
+        Guid id, UpdateUserProfileRequest request, CancellationToken cancellationToken)
+    {
+        var profile = await userManagement.UpdateProfileAsync(id, request, cancellationToken);
+        return profile is null
+            ? Problem(title: "The user was not found.", statusCode: StatusCodes.Status404NotFound)
+            : Ok(profile);
     }
 
     [HttpPut("{id:guid}/role")]
@@ -61,6 +85,26 @@ public sealed class AdminUsersController(IUserManagementService userManagement) 
             actorId,
             id,
             request.IsActive,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            cancellationToken);
+        return MapOutcome(outcome);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [HttpDelete("/api/users/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Remove(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TryGetActorId(out var actorId))
+        {
+            return Problem(title: "The access token subject is invalid.", statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        var outcome = await userManagement.RemoveUserAsync(
+            actorId,
+            id,
             HttpContext.Connection.RemoteIpAddress?.ToString(),
             cancellationToken);
         return MapOutcome(outcome);

@@ -1,6 +1,6 @@
 # Database design
 
-Status: **foundation, catalog, learning, assignments, discussions, and reminders schema** (migrations `InitialFoundation`, `AddCategories`, `AddCourses`, `AddLessonsAndEnrollments`, `AddLessonProgress`, `AddAssignmentsAndGrading`, and `AddDiscussionsAndDeadlineReminders`).
+Status: **foundation, catalog, learning, assignments, discussions, reminders, and course-details schema** (including the additive `AddCourseDetails` and `AddCourseDetailConstraints` migrations).
 
 ## ER diagram (current schema)
 
@@ -39,6 +39,10 @@ erDiagram
         string Title
         string Summary
         string Description
+        string Duration
+        decimal Price "GEL; zero is free"
+        string Difficulty "Beginner, Intermediate, Advanced"
+        string Prerequisites "nullable"
         string Status "Draft, PendingApproval, Published, Rejected, Archived"
         string RejectionReason "nullable"
         datetime2 CreatedAtUtc
@@ -149,7 +153,7 @@ Identity's other tables (`AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserToke
 
 `LessonProgress` stores one row per `(StudentUserId, LessonId)`. A row means the lesson is complete; deleting it resets that lesson. Its unique index makes completion idempotent at the data level. Course progress is calculated from the lessons and completion rows, so adding a lesson updates the denominator without rewriting stored progress. Archived course progress is readable but cannot be changed.
 
-Assignments belong to courses and may have an optional UTC deadline, a maximum attempt count (default 1), and a maximum score. Each submission attempt is a separate row; `(AssignmentId, StudentUserId, AttemptNumber)` is unique so history is retained. Scores are stored with two decimal places and cannot exceed the assignment's maximum.
+Assignments belong to courses and may have an optional UTC deadline, a maximum attempt count (default 1), and a maximum score capped at 10.0 (default 10.0). Each submission attempt is a separate row; `(AssignmentId, StudentUserId, AttemptNumber)` is unique so history is retained. Scores are stored with two decimal places, cannot exceed the assignment's maximum, and cannot exceed 10.0.
 
 Discussion posts are retained when moderated; hiding records the moderator and reason, while student lists omit hidden posts. Deadline reminders have a unique assignment/student pair, are retried up to five delivery attempts, and are marked sent only after the email sender succeeds. Streaks and recommendations are derived from existing completion and enrollment records, so they need no extra tables.
 
@@ -195,3 +199,5 @@ Production deployments will use a reviewed SQL script or migration bundle instea
 ## Known risks
 
 - **Data Protection keys.** Identity's email-confirmation and password-reset tokens are protected with ASP.NET Core Data Protection keys. If the key ring is lost on restart, outstanding tokens stop working. The key ring will be persisted before deployment.
+
+`Courses.Price` is `decimal(10,2)` in GEL. SQL constraints reject negative prices and difficulty values outside the three supported levels. Existing courses migrate with duration `Self-paced`, price `0.00`, difficulty `Beginner`, and no prerequisites.

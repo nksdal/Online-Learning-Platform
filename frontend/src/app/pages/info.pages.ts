@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../core/api.service';
@@ -12,11 +12,14 @@ import { Category, Course } from '../core/models';
     <main class="public-page-wrap">
       <header class="public-page-heading"><span class="nik-eyebrow">A PLACE TO START</span><h1>Explore courses.</h1><p>Choose a subject that sparks your curiosity. You can browse before you make an account.</p></header>
       <section class="public-course-section" aria-label="Course catalogue">
-        <div class="nik-filter-row" aria-label="Filter courses by category"><button class="nik-filter" [class.selected]="!selectedCategory()" (click)="selectCategory(null)">All courses</button>@for (category of categories(); track category.id) { <button class="nik-filter" [class.selected]="selectedCategory() === category.id" (click)="selectCategory(category.id)">{{ category.name }}</button> }</div>
+        <div class="course-tools">
+          <label class="course-search"><span aria-hidden="true">⌕</span><input type="search" aria-label="Search courses" placeholder="Search courses by name or subject" [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" /></label>
+          <div class="nik-filter-row" aria-label="Filter courses by category"><button class="nik-filter" [class.selected]="!selectedCategory()" (click)="selectCategory(null)">All courses</button>@for (category of categories(); track category.id) { <button class="nik-filter" [class.selected]="selectedCategory() === category.id" (click)="selectCategory(category.id)">{{ category.name }}</button> }</div>
+        </div>
         @if (loading()) { <div class="nik-state"><span class="nik-spinner"></span> Finding courses for you…</div> }
         @else if (error()) { <div class="nik-state nik-state-error"><strong>We couldn’t load the course catalogue.</strong><span>{{ error() }}</span><button class="nik-retry" (click)="load()">Try again</button></div> }
-        @else if (courses().length === 0) { <div class="nik-state"><strong>No courses in this category yet.</strong><span>Try another subject or check back soon.</span></div> }
-        @else { <div class="nik-course-grid">@for (course of courses(); track course.id; let i = $index) { <a class="nik-course-card" [routerLink]="['/courses', course.id]"><div class="nik-course-art" [class]="'nik-course-art course-tone-' + (i % 4)"><span class="nik-course-index">{{ (i + 1).toString().padStart(2, '0') }} / COURSE</span><span class="nik-course-glyph">{{ glyph(i) }}</span><span class="nik-course-subject">{{ categoryName(course.categoryId) }}</span></div><div class="nik-course-body"><h2>{{ course.title }}</h2><p>{{ course.summary }}</p><span class="nik-course-link">Explore course <b>↗</b></span></div></a> }</div> }
+        @else if (visibleCourses().length === 0) { <div class="nik-state"><strong>{{ searchQuery().trim() ? 'No courses match your search.' : 'No courses in this category yet.' }}</strong><span>{{ searchQuery().trim() ? 'Try another course name or subject.' : 'Try another subject or check back soon.' }}</span></div> }
+        @else { <div class="nik-course-grid">@for (course of visibleCourses(); track course.id; let i = $index) { <a class="nik-course-card" [routerLink]="['/courses', course.id]"><div class="nik-course-art" [class]="'nik-course-art course-tone-' + (i % 4) + (course.imageUrl ? ' has-photo' : '')">@if (course.imageUrl) { <img class="nik-course-photo" [src]="course.imageUrl" [alt]="course.title + ' course photo'" loading="lazy" decoding="async"> } @else { <span class="nik-course-glyph">{{ glyph(i) }}</span> }<span class="nik-course-index">{{ (i + 1).toString().padStart(2, '0') }} / COURSE</span><span class="nik-course-subject">{{ categoryName(course.categoryId) }}</span></div><div class="nik-course-body"><h2>{{ course.title }}</h2><p>{{ course.summary }}</p><span class="nik-course-link">Explore course <b>↗</b></span></div></a> }</div> }
       </section>
       <section class="public-page-cta"><div><span class="nik-eyebrow">READY WHEN YOU ARE</span><h2>Your next small win is waiting.</h2></div><a class="nik-button nik-button-navy" routerLink="/register">Create your account <span>↗</span></a></section>
     </main>
@@ -27,6 +30,12 @@ export class CoursesPage implements OnInit {
   readonly courses = signal<Course[]>([]);
   readonly categories = signal<Category[]>([]);
   readonly selectedCategory = signal<string | null>(null);
+  readonly searchQuery = signal('');
+  readonly visibleCourses = computed(() => {
+    const query = this.searchQuery().trim().toLocaleLowerCase();
+    return this.courses().filter(course => !query ||
+      `${course.title} ${course.summary} ${this.categoryName(course.categoryId)}`.toLocaleLowerCase().includes(query));
+  });
   readonly loading = signal(true);
   readonly error = signal('');
   ngOnInit(): void { this.load(); }

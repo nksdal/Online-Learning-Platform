@@ -52,6 +52,23 @@ services:
       ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=OnlineLearningPlatform;User ID=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True
       Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
     depends_on:
+      db-provision:
+        condition: service_completed_successfully
+    restart: "no"
+
+  db-provision:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver,1433 -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b
+        -v AppPassword="$${DB_APP_PASSWORD}" -i /scripts/provision-app-user.sql
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env}
+    volumes:
+      - ./deploy/provision-app-user.sql:/scripts/provision-app-user.sql:ro
+    depends_on:
       sqlserver:
         condition: service_healthy
     restart: "no"
@@ -65,7 +82,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
       Swagger__Enabled: "true"
-      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=OnlineLearningPlatform;User ID=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=OnlineLearningPlatform;User ID=OnlineLearningPlatformApp;Password=${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True
       Authentication__Jwt__Issuer: OnlineLearningPlatform
       Authentication__Jwt__Audience: OnlineLearningPlatform.AngularClient
       Authentication__Jwt__AccessTokenMinutes: 15
@@ -73,20 +90,23 @@ services:
       BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-}
       BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
       DemoCatalog__Enabled: ${DEMO_CATALOG_ENABLED:-true}
-      Email__FromAddress: ${EMAIL_FROM_ADDRESS:?Set EMAIL_FROM_ADDRESS to your Gmail address in .env}
-      Email__FromName: ${EMAIL_FROM_NAME:-Nikladori}
-      Email__VerificationPageUrl: ${EMAIL_VERIFICATION_URL:-http://localhost:4200/verify-email}
-      Email__PasswordResetPageUrl: ${EMAIL_PASSWORD_RESET_URL:-http://localhost:4200/reset-password}
-      Email__Smtp__Host: ${EMAIL_SMTP_HOST:?Set EMAIL_SMTP_HOST in .env}
-      Email__Smtp__Port: ${EMAIL_SMTP_PORT:-587}
-      Email__Smtp__UseStartTls: ${EMAIL_SMTP_USE_STARTTLS:-true}
-      Email__Smtp__UserName: ${EMAIL_SMTP_USERNAME:?Set EMAIL_SMTP_USERNAME in .env}
-      Email__Smtp__Password: ${EMAIL_SMTP_PASSWORD:?Set EMAIL_SMTP_PASSWORD to a Gmail App Password in .env}
+      Email__Smtp__Host: ${EMAIL_HOST:-smtp.gmail.com}
+      Email__Smtp__Port: ${EMAIL_PORT:-465}
+      Email__Smtp__Secure: "true"
+      Email__Smtp__UserName: ${EMAIL_USER:?Set EMAIL_USER in .env}
+      Email__Smtp__Password: ${EMAIL_PASS:?Set EMAIL_PASS to a Gmail App Password in .env}
+      Email__From: ${EMAIL_FROM:?Set EMAIL_FROM to your Gmail address in .env}
+      Email__AppUrl: ${APP_URL:-http://localhost:4200}
+      Cors__AllowedOrigins__0: http://localhost:4200
+      Cors__AllowedOrigins__1: http://${FRONTEND_HOST:-localhost}:4200
+      AllowedHosts: ${ALLOWED_HOSTS:-localhost;127.0.0.1;[::1];${FRONTEND_HOST:-localhost}}
       Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
       Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
       Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
     ports:
-      - "127.0.0.1:${API_HOST_PORT:-5220}:8080"
+      - "${API_BIND_ADDRESS:-127.0.0.1}:${API_HOST_PORT:-5220}:8080"
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -100,3 +120,4 @@ services:
 
 volumes:
   sqlserver-data:
+  dataprotection-keys:

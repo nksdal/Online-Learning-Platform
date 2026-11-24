@@ -45,6 +45,8 @@ public sealed class ApplicationDbContext
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<AccountActionToken> AccountActionTokens => Set<AccountActionToken>();
+
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)

@@ -37,13 +37,21 @@ public sealed class LearningTests
         Assert.Equal(HttpStatusCode.OK, (await admin.PostAsync($"/api/admin/courses/{course.Id}/approve", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await student.PostAsync($"/api/courses/{course.Id}/enrollments", null)).StatusCode);
 
-        var first = await teacher.PostAsJsonAsync($"/api/teacher/courses/{course.Id}/lessons",
+        var first = await teacher.PostAsJsonAsync($"/api/courses/{course.Id}/lessons",
             new LessonWriteRequest("Lesson One", "First lesson content.", 1));
-        var second = await teacher.PostAsJsonAsync($"/api/teacher/courses/{course.Id}/lessons",
+        var second = await teacher.PostAsJsonAsync($"/api/courses/{course.Id}/lessons",
             new LessonWriteRequest("Lesson Two", "Second lesson content.", 2));
         var firstLesson = await first.Content.ReadFromJsonAsync<LessonResponse>();
+        var secondLesson = await second.Content.ReadFromJsonAsync<LessonResponse>();
         Assert.NotNull(firstLesson);
+        Assert.NotNull(secondLesson);
         Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+
+        var lessonUpdate = await teacher.PutAsJsonAsync($"/api/courses/{course.Id}/lessons/{firstLesson.Id}",
+            new LessonWriteRequest("Lesson One: Updated", "Updated lesson content.", 1));
+        Assert.Equal(HttpStatusCode.OK, lessonUpdate.StatusCode);
+        firstLesson = await lessonUpdate.Content.ReadFromJsonAsync<LessonResponse>();
+        Assert.NotNull(firstLesson);
 
         var completion = await student.PutAsync($"/api/lessons/{firstLesson.Id}/progress", null);
         Assert.Equal(HttpStatusCode.OK, completion.StatusCode);
@@ -55,6 +63,16 @@ public sealed class LearningTests
         Assert.Equal(2, courseProgress.TotalLessons);
         Assert.Equal(1, courseProgress.CompletedLessons);
         Assert.Equal(50m, courseProgress.CompletionPercentage);
+        Assert.NotNull(courseProgress.Lessons.Single(item => item.LessonId == firstLesson.Id).CompletedAtUtc);
+        Assert.Null(courseProgress.Lessons.Single(item => item.LessonId != firstLesson.Id).CompletedAtUtc);
+
+        var allProgress = await student.GetFromJsonAsync<CourseProgressResponse[]>("/api/users/me/progress");
+        Assert.NotNull(allProgress);
+        Assert.Equal(course.Id, Assert.Single(allProgress).CourseId);
+        Assert.Null(allProgress[0].Lessons.Single(item => item.LessonId != firstLesson.Id).CompletedAtUtc);
+
+        Assert.Equal(HttpStatusCode.NoContent,
+            (await teacher.DeleteAsync($"/api/courses/{course.Id}/lessons/{secondLesson.Id}")).StatusCode);
 
         Assert.Equal(HttpStatusCode.NoContent, (await student.DeleteAsync($"/api/lessons/{firstLesson.Id}/progress")).StatusCode);
         courseProgress = await student.GetFromJsonAsync<CourseProgressResponse>($"/api/courses/{course.Id}/progress/me");
@@ -95,13 +113,15 @@ public sealed class LearningTests
 
         var enrollment = await student.PostAsync($"/api/courses/{course.Id}/enrollments", null);
         Assert.Equal(HttpStatusCode.Created, enrollment.StatusCode);
-        Assert.Equal(HttpStatusCode.Conflict, (await student.PostAsync($"/api/courses/{course.Id}/enrollments", null)).StatusCode);
+        var duplicateEnrollment = await student.PostAsync($"/api/courses/{course.Id}/enrollments", null);
+        Assert.Equal(HttpStatusCode.Conflict, duplicateEnrollment.StatusCode);
+        Assert.Equal("application/problem+json", duplicateEnrollment.Content.Headers.ContentType?.MediaType);
         var myEnrollments = await student.GetFromJsonAsync<EnrollmentResponse[]>("/api/users/me/enrollments");
         Assert.NotNull(myEnrollments);
         Assert.Single(myEnrollments);
         Assert.Equal("Published", myEnrollments[0].CourseStatus);
 
-        var createdLesson = await teacher.PostAsJsonAsync($"/api/teacher/courses/{course.Id}/lessons",
+        var createdLesson = await teacher.PostAsJsonAsync($"/api/courses/{course.Id}/lessons",
             new LessonWriteRequest("Welcome", "Start with the API overview.", 1));
         Assert.Equal(HttpStatusCode.Created, createdLesson.StatusCode);
         var lesson = await createdLesson.Content.ReadFromJsonAsync<LessonResponse>();

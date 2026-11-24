@@ -89,7 +89,7 @@ public sealed class UsersController(
     [ProducesResponseType(StatusCodes.Status413PayloadTooLarge)]
     [ProducesResponseType(StatusCodes.Status415UnsupportedMediaType)]
     public async Task<IActionResult> UploadMyProfilePicture(
-        [FromForm] IFormFile? file,
+        IFormFile? file,
         CancellationToken cancellationToken)
     {
         if (!Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out var userId))

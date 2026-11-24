@@ -13,6 +13,7 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
         builder.Property(u => u.TimeZoneId).IsRequired().HasMaxLength(ApplicationUser.TimeZoneIdMaxLength);
         builder.Property(u => u.ProfileImageUrl).HasMaxLength(ApplicationUser.ProfileImageUrlMaxLength);
         builder.Property(u => u.ProfileImagePublicId).HasMaxLength(ApplicationUser.ProfileImagePublicIdMaxLength);
+        builder.Property(u => u.IsDeleted).HasDefaultValue(false);
 
         // Identity creates a NON-unique index on NormalizedEmail and relies on UserManager to reject
         // duplicates. Two simultaneous registrations could slip past that check, so the database

@@ -13,10 +13,12 @@ namespace OnlineLearningPlatform.Api.Controllers;
 public sealed class TeacherGradingController(IAssignmentService assignments) : ControllerBase
 {
     [HttpPut("{submissionId:guid}/grade")]
+    [HttpPut("/api/assignments/{id:guid}/grade")]
     [ProducesResponseType(typeof(AssignmentSubmissionResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Grade(Guid submissionId, GradeSubmissionRequest request, CancellationToken ct) =>
+    public async Task<IActionResult> Grade(
+        Guid submissionId, [FromRoute(Name = "id")] Guid? id, GradeSubmissionRequest request, CancellationToken ct) =>
         TryActor(out var teacher)
-            ? Ok(await assignments.GradeAsync(submissionId, teacher, request, ct))
+            ? Ok(await assignments.GradeAsync(id ?? submissionId, teacher, request, ct))
             : Unauthorized();
 
     private bool TryActor(out Guid actor) => Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out actor);

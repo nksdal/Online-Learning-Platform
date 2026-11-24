@@ -32,6 +32,9 @@ public class ApplicationUser : IdentityUser<Guid>, IAuditableEntity
     /// <summary>False = suspended. Suspended users are rejected even if they hold a valid access token.</summary>
     public bool IsActive { get; set; } = true;
 
+    /// <summary>True = the account was removed and its identifying fields were anonymized.</summary>
+    public bool IsDeleted { get; set; }
+
     /// <summary>Set for the seeded administrator until the initial password has been changed.</summary>
     public bool MustChangePassword { get; set; }
 

@@ -219,6 +219,25 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AssignmentId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("AttachmentContentType")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("AttachmentFileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("AttachmentPublicId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long?>("AttachmentSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
                     b.Property<int>("AttemptNumber")
                         .HasColumnType("int");
 
@@ -264,7 +283,10 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.HasIndex("AssignmentId", "StudentUserId", "AttemptNumber")
                         .IsUnique();
 
-                    b.ToTable("AssignmentSubmissions", (string)null);
+                    b.ToTable("AssignmentSubmissions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_AssignmentSubmissions_Score_Range", "[Score] IS NULL OR ([Score] >= 0 AND [Score] <= 10.0)");
+                        });
                 });
 
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.Category", b =>
@@ -310,6 +332,10 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CategoryId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CloudinaryImagePublicId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -318,12 +344,36 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .HasMaxLength(10000)
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Difficulty")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasDefaultValue("Beginner");
+
+                    b.Property<string>("Duration")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("Self-paced");
+
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)");
 
                     b.Property<Guid>("InstructorUserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Prerequisites")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<decimal>("Price")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(1000)
@@ -357,7 +407,12 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status", "CategoryId");
 
-                    b.ToTable("Courses", (string)null);
+                    b.ToTable("Courses", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Courses_Difficulty_Values", "[Difficulty] IN ('Beginner', 'Intermediate', 'Advanced')");
+
+                            t.HasCheckConstraint("CK_Courses_Price_NonNegative", "[Price] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.CourseAssignment", b =>
@@ -399,7 +454,10 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CourseId", "DueAtUtc");
 
-                    b.ToTable("Assignments", (string)null);
+                    b.ToTable("Assignments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Assignments_MaxScore_Range", "[MaxScore] > 0 AND [MaxScore] <= 10.0");
+                        });
                 });
 
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Catalog.CourseDiscussionPost", b =>
@@ -513,6 +571,14 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("UpdatedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("VideoPublicId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("VideoUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CourseId", "Position");
@@ -549,6 +615,44 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("LessonProgress", (string)null);
+                });
+
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Identity.AccountActionToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("UsedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "Purpose", "UsedAtUtc");
+
+                    b.ToTable("AccountActionTokens", (string)null);
                 });
 
             modelBuilder.Entity("OnlineLearningPlatform.Domain.Identity.ApplicationRole", b =>
@@ -632,6 +736,11 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -929,6 +1038,15 @@ namespace OnlineLearningPlatform.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("StudentUserId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OnlineLearningPlatform.Domain.Identity.AccountActionToken", b =>
+                {
+                    b.HasOne("OnlineLearningPlatform.Domain.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

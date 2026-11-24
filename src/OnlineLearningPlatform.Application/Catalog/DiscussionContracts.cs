@@ -7,6 +7,8 @@ public sealed record ModerateDiscussionRequest(bool IsHidden, string? Reason);
 public sealed record DiscussionPostResponse(
     Guid Id, Guid CourseId, Guid AuthorUserId, Guid? ParentPostId, string Body, bool IsHidden,
     string? ModerationReason, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
+public sealed record DiscussionPostsPageResponse(
+    int Page, int PageSize, int TotalCount, IReadOnlyCollection<DiscussionPostResponse> Items);
 
 public sealed class DiscussionPostRequestValidator : AbstractValidator<DiscussionPostRequest>
 {
@@ -24,9 +26,9 @@ public sealed class ModerateDiscussionRequestValidator : AbstractValidator<Moder
 
 public interface IDiscussionService
 {
-    Task<IReadOnlyCollection<DiscussionPostResponse>> ListForStudentAsync(Guid courseId, Guid studentId, CancellationToken ct);
-    Task<IReadOnlyCollection<DiscussionPostResponse>> ListForTeacherAsync(Guid courseId, Guid teacherId, CancellationToken ct);
-    Task<IReadOnlyCollection<DiscussionPostResponse>> ListForAdminAsync(Guid courseId, CancellationToken ct);
+    Task<DiscussionPostsPageResponse> ListForStudentAsync(Guid courseId, Guid studentId, int page, int pageSize, CancellationToken ct);
+    Task<DiscussionPostsPageResponse> ListForTeacherAsync(Guid courseId, Guid teacherId, int page, int pageSize, CancellationToken ct);
+    Task<DiscussionPostsPageResponse> ListForAdminAsync(Guid courseId, int page, int pageSize, CancellationToken ct);
     Task<DiscussionPostResponse> CreateAsync(Guid courseId, Guid studentId, DiscussionPostRequest request, CancellationToken ct);
     Task<DiscussionPostResponse> ReplyAsync(Guid parentPostId, Guid studentId, DiscussionPostRequest request, CancellationToken ct);
     Task<DiscussionPostResponse> ModerateAsync(Guid postId, Guid actorId, bool isAdmin, ModerateDiscussionRequest request, CancellationToken ct);

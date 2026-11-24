@@ -23,7 +23,7 @@ flowchart LR
 |---|---|---|
 | **Domain** | Entities, enums, invariants and state rules that need no framework. | `Course` status transitions, `Submission` attempt rules |
 | **Application** | Use cases. Defines the interfaces it needs and the DTOs and validators for its inputs and outputs. | `ICourseService`, `IApplicationDbContext`, `IEmailService`, `ICloudinaryService`, FluentValidation validators |
-| **Infrastructure** | Implements what Application declares, using real technology. | EF Core `DbContext`, Identity stores, provider-configurable SMTP email sender, Cloudinary client, `BackgroundService` jobs |
+| **Infrastructure** | Implements what Application declares, using real technology. | EF Core `DbContext`, Identity stores, Gmail SMTP email sender, Cloudinary client, `BackgroundService` jobs |
 | **Api** | HTTP only: controllers, authentication and authorization setup, middleware, Swagger. Controllers stay thin and call Application services. | `AuthController`, exception-handling middleware |
 
 ## 2. Design decisions and trade-offs
@@ -80,7 +80,7 @@ The authentication foundation is implemented: the API issues and validates short
 | Topic | Design |
 |---|---|
 | Passwords | ASP.NET Core Identity hashing and password policy. No custom hashing. |
-| Registration | Always Student. Email verification required before login. Verification tokens come from Identity, are time-limited, and the resend endpoint is rate-limited and reveals nothing about whether an address exists. |
+| Registration | Always Student. Email verification required before login. Verification and password-reset tokens are random, single-use values; only SHA-256 hashes are stored. Verification expires after 24 hours, reset after 30 minutes. The resend endpoint is rate-limited and reveals nothing about whether an address exists. |
 | Access token | JWT, lifetime of at most 15 minutes, returned in the JSON body. The Angular app keeps it in memory, never in `localStorage`. |
 | Refresh token | Random value, stored only as a hash. Delivered in an `HttpOnly` cookie; `Secure` outside Development and `SameSite=Strict`; cookie `Path` limited to `/api/auth`. Rotated on every use; 30-day lifetime. |
 | Reuse detection | Each token belongs to a "family". Presenting an already-rotated token revokes the whole family. |

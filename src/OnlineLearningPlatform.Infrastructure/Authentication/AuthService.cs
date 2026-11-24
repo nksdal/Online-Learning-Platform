@@ -70,24 +70,57 @@ public sealed class AuthService(
 
     public async Task VerifyEmailAsync(VerifyEmailRequest request, CancellationToken cancellationToken)
     {
-        var user = await userManager.FindByIdAsync(request.UserId.ToString());
-        if (user is null || user.EmailConfirmed)
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!IsActionTokenFormatValid(request.Token))
         {
             return;
         }
 
-        try
+        var tokenHash = HashActionToken(request.Token);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        var verified = await strategy.ExecuteAsync(async () =>
         {
-            var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Token));
-            var result = await userManager.ConfirmEmailAsync(user, decodedToken);
-            if (!result.Succeeded)
+            dbContext.ChangeTracker.Clear();
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable, cancellationToken);
+
+            var user = await userManager.FindByIdAsync(request.UserId.ToString());
+            if (user is null || user.EmailConfirmed || !user.IsActive || user.IsDeleted)
             {
-                logger.LogInformation("An email verification attempt was rejected.");
+                await transaction.CommitAsync(cancellationToken);
+                return false;
             }
-        }
-        catch (FormatException)
+
+            var actionToken = await dbContext.AccountActionTokens.SingleOrDefaultAsync(
+                token => token.UserId == user.Id &&
+                         token.Purpose == AccountActionTokenPurpose.EmailVerification &&
+                         token.TokenHash == tokenHash,
+                cancellationToken);
+            if (actionToken is null || !actionToken.IsUsable(now))
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return false;
+            }
+
+            actionToken.MarkUsed(now);
+            user.EmailConfirmed = true;
+            var stampResult = await userManager.UpdateSecurityStampAsync(user);
+            if (!stampResult.Succeeded)
+            {
+                var errorCodes = string.Join(",", stampResult.Errors.Select(error => error.Code));
+                logger.LogError("Could not confirm an email address securely. Identity error codes: {ErrorCodes}", errorCodes);
+                throw new InvalidOperationException("The email address could not be confirmed securely.");
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        });
+
+        if (!verified)
         {
-            logger.LogInformation("An email verification attempt contained an invalid token encoding.");
+            logger.LogInformation("An email verification attempt was rejected.");
         }
     }
 
@@ -244,63 +277,115 @@ public sealed class AuthService(
             return;
         }
 
-        var identityToken = await userManager.GeneratePasswordResetTokenAsync(user);
-        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(identityToken));
+        var token = await IssueActionTokenAsync(
+            user.Id,
+            AccountActionTokenPurpose.PasswordReset,
+            TimeSpan.FromMinutes(30),
+            cancellationToken);
         var resetUrl = QueryHelpers.AddQueryString(
             emailOptions.Value.PasswordResetPageUrl,
             new Dictionary<string, string?>
             {
                 ["userId"] = user.Id.ToString(),
-                ["token"] = encodedToken,
+                ["token"] = token,
             });
 
-        await emailSender.SendAsync(
-            new EmailMessage(
-                user.Email!,
-                "Reset your Online Learning Platform password",
-                $"Reset your password by opening this link: {resetUrl}",
-                $"<p>A password reset was requested for your account.</p><p><a href=\"{System.Net.WebUtility.HtmlEncode(resetUrl)}\">Reset password</a></p><p>If you did not request this, you can ignore this message.</p>"),
-            cancellationToken);
+        try
+        {
+            await emailSender.SendAsync(
+                new EmailMessage(
+                    user.Email!,
+                    "Reset your Online Learning Platform password",
+                    $"Reset your password by opening this link: {resetUrl} This link expires in 30 minutes. If you did not request this, you can ignore this message.",
+                    $"<p>A password reset was requested for your account.</p><p><a href=\"{System.Net.WebUtility.HtmlEncode(resetUrl)}\">Reset password</a></p><p>This link expires in 30 minutes. If you did not request this, you can ignore this message.</p>"),
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Keep the forgot-password response identical for known and unknown email addresses.
+            logger.LogWarning("A password recovery email could not be delivered.");
+        }
     }
 
     public async Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var user = await userManager.FindByIdAsync(request.UserId.ToString());
-        if (user is null || !user.IsActive || !user.EmailConfirmed)
+        if (!IsActionTokenFormatValid(request.Token))
         {
             return false;
         }
 
-        string decodedToken;
-        try
+        var tokenHash = HashActionToken(request.Token);
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(request.Token));
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
+            dbContext.ChangeTracker.Clear();
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable, cancellationToken);
 
-        var result = await userManager.ResetPasswordAsync(user, decodedToken, request.NewPassword);
-        if (!result.Succeeded)
-        {
-            var errorCodes = string.Join(",", result.Errors.Select(error => error.Code));
-            logger.LogInformation("A password reset attempt was rejected. Identity error codes: {ErrorCodes}", errorCodes);
-            return false;
-        }
+            var user = await userManager.FindByIdAsync(request.UserId.ToString());
+            if (user is null || !user.IsActive || user.IsDeleted || !user.EmailConfirmed)
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return false;
+            }
 
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        var activeRefreshTokens = await dbContext.RefreshTokens
-            .Where(token => token.UserId == user.Id && token.RevokedAtUtc == null)
-            .ToListAsync(cancellationToken);
-        foreach (var token in activeRefreshTokens)
-        {
-            token.Revoke(now, "PasswordReset");
-        }
+            var actionToken = await dbContext.AccountActionTokens.SingleOrDefaultAsync(
+                token => token.UserId == user.Id &&
+                         token.Purpose == AccountActionTokenPurpose.PasswordReset &&
+                         token.TokenHash == tokenHash,
+                cancellationToken);
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            if (actionToken is null || !actionToken.IsUsable(now))
+            {
+                await transaction.CommitAsync(cancellationToken);
+                return false;
+            }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return true;
+            var validationErrors = new List<IdentityError>();
+            foreach (var passwordValidator in userManager.PasswordValidators)
+            {
+                var validation = await passwordValidator.ValidateAsync(userManager, user, request.NewPassword);
+                if (!validation.Succeeded)
+                {
+                    validationErrors.AddRange(validation.Errors);
+                }
+            }
+
+            if (validationErrors.Count > 0)
+            {
+                logger.LogInformation("A password reset was rejected by Identity policy. Error codes: {ErrorCodes}",
+                    string.Join(",", validationErrors.Select(error => error.Code)));
+                await transaction.CommitAsync(cancellationToken);
+                return false;
+            }
+
+            actionToken.MarkUsed(now);
+            user.PasswordHash = userManager.PasswordHasher.HashPassword(user, request.NewPassword);
+            var stampResult = await userManager.UpdateSecurityStampAsync(user);
+            if (!stampResult.Succeeded)
+            {
+                var errorCodes = string.Join(",", stampResult.Errors.Select(error => error.Code));
+                logger.LogError("Could not securely complete a password reset. Identity error codes: {ErrorCodes}", errorCodes);
+                throw new InvalidOperationException("The password could not be reset securely.");
+            }
+
+            var activeRefreshTokens = await dbContext.RefreshTokens
+                .Where(token => token.UserId == user.Id && token.RevokedAtUtc == null)
+                .ToListAsync(cancellationToken);
+            foreach (var refreshToken in activeRefreshTokens)
+            {
+                refreshToken.Revoke(now, "PasswordReset");
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return true;
+        });
     }
 
     public async Task<AccessTokenResponse?> ChangePasswordAsync(
@@ -550,22 +635,76 @@ public sealed class AuthService(
 
     private async Task SendVerificationEmailAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
-        var identityToken = await userManager.GenerateEmailConfirmationTokenAsync(user);
-        var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(identityToken));
+        var token = await IssueActionTokenAsync(
+            user.Id,
+            AccountActionTokenPurpose.EmailVerification,
+            TimeSpan.FromHours(24),
+            cancellationToken);
         var verificationUrl = QueryHelpers.AddQueryString(
             emailOptions.Value.VerificationPageUrl,
             new Dictionary<string, string?>
             {
                 ["userId"] = user.Id.ToString(),
-                ["token"] = encodedToken,
+                ["token"] = token,
             });
 
         var message = new EmailMessage(
             user.Email!,
             "Verify your Online Learning Platform account",
-            $"Verify your email by opening this link: {verificationUrl}",
-            $"<p>Verify your email address to activate your account.</p><p><a href=\"{System.Net.WebUtility.HtmlEncode(verificationUrl)}\">Verify email</a></p>");
+            $"Verify your email by opening this link: {verificationUrl} This link expires in 24 hours.",
+            $"<p>Verify your email address to activate your account.</p><p><a href=\"{System.Net.WebUtility.HtmlEncode(verificationUrl)}\">Verify email</a></p><p>This link expires in 24 hours.</p>");
 
-        await emailSender.SendAsync(message, cancellationToken);
+        try
+        {
+            await emailSender.SendAsync(message, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Keep registration and resend responses generic even when the provider is unavailable.
+            logger.LogWarning("An account verification email could not be delivered.");
+        }
     }
+
+    private async Task<string> IssueActionTokenAsync(
+        Guid userId,
+        AccountActionTokenPurpose purpose,
+        TimeSpan lifetime,
+        CancellationToken cancellationToken)
+    {
+        var rawToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
+        var tokenHash = HashActionToken(rawToken);
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            dbContext.ChangeTracker.Clear();
+            await using var transaction = await dbContext.Database.BeginTransactionAsync(
+                System.Data.IsolationLevel.Serializable, cancellationToken);
+
+            var outstandingTokens = await dbContext.AccountActionTokens
+                .Where(token => token.UserId == userId && token.Purpose == purpose && token.UsedAtUtc == null)
+                .ToListAsync(cancellationToken);
+            foreach (var outstandingToken in outstandingTokens)
+            {
+                outstandingToken.MarkUsed(now);
+            }
+
+            dbContext.AccountActionTokens.Add(
+                AccountActionToken.Create(userId, tokenHash, purpose, now, lifetime));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        });
+
+        return rawToken;
+    }
+
+    private static bool IsActionTokenFormatValid(string token) =>
+        token.Length == AccountActionToken.TokenHashMaxLength && token.All(Uri.IsHexDigit);
+
+    private static string HashActionToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 }

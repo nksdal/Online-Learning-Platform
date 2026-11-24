@@ -7,6 +7,7 @@ public sealed class CourseAssignment : IAuditableEntity
     public const int TitleMaxLength = 150;
     public const int InstructionsMaxLength = 10_000;
     public const int DefaultMaxAttempts = 1;
+    public const decimal MaxScoreLimit = 10.0m;
 
     private CourseAssignment() { }
 
@@ -34,8 +35,8 @@ public sealed class CourseAssignment : IAuditableEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(instructions);
         if (maxAttempts is < 1 or > 20) throw new ArgumentOutOfRangeException(nameof(maxAttempts));
-        if (maxScore <= 0 || maxScore > 999_999.99m || decimal.Round(maxScore, 2) != maxScore)
-            throw new ArgumentOutOfRangeException(nameof(maxScore), "Maximum score must be positive with at most two decimal places.");
+        if (maxScore <= 0 || maxScore > MaxScoreLimit || decimal.Round(maxScore, 2) != maxScore)
+            throw new ArgumentOutOfRangeException(nameof(maxScore), "Maximum score must be between 0 and 10.0 with at most two decimal places.");
         if (dueAtUtc.HasValue) Guard.EnsureUtc(dueAtUtc.Value, nameof(dueAtUtc));
         Title = title.Trim();
         Instructions = instructions.Trim();

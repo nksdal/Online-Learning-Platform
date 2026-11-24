@@ -12,8 +12,9 @@ namespace OnlineLearningPlatform.Api.Controllers;
 public sealed class StudentDiscussionsController(IDiscussionService discussions) : ControllerBase
 {
     [HttpGet("/api/courses/{courseId:guid}/discussions")]
-    public async Task<IActionResult> List(Guid courseId, CancellationToken ct) =>
-        TryActor(out var student) ? Ok(await discussions.ListForStudentAsync(courseId, student, ct)) : Unauthorized();
+    public async Task<IActionResult> List(Guid courseId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
+        CancellationToken ct = default) =>
+        TryActor(out var student) ? Ok(await discussions.ListForStudentAsync(courseId, student, page, pageSize, ct)) : Unauthorized();
 
     [HttpPost("/api/courses/{courseId:guid}/discussions")]
     public async Task<IActionResult> Create(Guid courseId, DiscussionPostRequest request, CancellationToken ct)

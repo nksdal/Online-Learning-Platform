@@ -30,7 +30,7 @@ Open `http://localhost:4200`. The API URL is configured in `src/environments/env
 - Assignment instructions, text submissions, attempt history, grades, and instructor feedback.
 - Course discussions with posts and replies.
 
-Registration and password recovery emails are delivered through the configured SMTP provider to real inboxes. The default local links point to `localhost:4200`, so they work on the computer running the frontend. Use the deployed frontend URL in the email settings for public users.
+Registration and password recovery emails are delivered through Gmail SMTP. The default local links point to `localhost:4200`, so they work on the computer running the frontend. Set `APP_URL` to the PC's LAN address when testing links from a phone on the same Wi-Fi, or to the deployed frontend URL for public users.
 
 ## Build
 

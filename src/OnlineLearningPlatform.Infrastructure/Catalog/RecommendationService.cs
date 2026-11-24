@@ -10,34 +10,55 @@ public sealed class RecommendationService(ApplicationDbContext db) : IRecommenda
         Guid studentId, int limit, CancellationToken ct)
     {
         limit = Math.Clamp(limit, 1, 20);
-        var enrolledIds = await db.Enrollments.AsNoTracking().Where(item => item.StudentUserId == studentId)
-            .Select(item => item.CourseId).ToArrayAsync(ct);
-        var categoryHistory = await db.Enrollments.AsNoTracking()
+
+        var enrolledCourseIds = (await db.Enrollments.AsNoTracking()
+                .Where(enrollment => enrollment.StudentUserId == studentId)
+                .Select(enrollment => enrollment.CourseId)
+                .ToArrayAsync(ct))
+            .ToHashSet();
+
+        var enrolledCategoryIds = await db.Enrollments.AsNoTracking()
             .Where(enrollment => enrollment.StudentUserId == studentId)
             .Join(db.Courses.AsNoTracking(), enrollment => enrollment.CourseId, course => course.Id,
                 (_, course) => course.CategoryId)
             .ToArrayAsync(ct);
-        var categoryAffinity = categoryHistory.GroupBy(id => id).ToDictionary(group => group.Key, group => group.Count());
-        var popularity = await db.Enrollments.AsNoTracking().GroupBy(item => item.CourseId)
+        var categoryAffinity = enrolledCategoryIds
+            .GroupBy(categoryId => categoryId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        var popularity = await db.Enrollments.AsNoTracking()
+            .GroupBy(enrollment => enrollment.CourseId)
             .Select(group => new { CourseId = group.Key, Count = group.Count() })
             .ToDictionaryAsync(item => item.CourseId, item => item.Count, ct);
-        var candidates = await db.Courses.AsNoTracking()
-            .Where(course => course.Status == Domain.Catalog.CourseStatus.Published && !enrolledIds.Contains(course.Id))
-            .ToListAsync(ct);
 
-        return candidates
+        // Keep SQL limited to simple, provider-friendly reads. Ranking is intentionally done
+        // in memory because the SQL Server provider cannot translate the previous grouped
+        // left-join ordering for courses with no learner history.
+        var publishedCourses = await db.Courses.AsNoTracking()
+            .Where(course => course.Status == Domain.Catalog.CourseStatus.Published)
+            .Select(course => new RecommendationCandidate(
+                course.Id, course.Title, course.Summary, course.CategoryId, course.ImageUrl))
+            .ToArrayAsync(ct);
+
+        return publishedCourses
+            .Where(course => !enrolledCourseIds.Contains(course.CourseId))
             .OrderByDescending(course => categoryAffinity.GetValueOrDefault(course.CategoryId))
-            .ThenByDescending(course => popularity.GetValueOrDefault(course.Id))
+            .ThenByDescending(course => popularity.GetValueOrDefault(course.CourseId))
             .ThenBy(course => course.Title)
             .Take(limit)
             .Select(course => new RecommendedCourseResponse(
-                course.Id,
+                course.CourseId,
                 course.Title,
                 course.Summary,
                 course.CategoryId,
                 course.ImageUrl,
-                popularity.GetValueOrDefault(course.Id),
-                categoryAffinity.ContainsKey(course.CategoryId) ? "Based on your enrolled course categories." : "Popular with learners."))
+                popularity.GetValueOrDefault(course.CourseId),
+                categoryAffinity.ContainsKey(course.CategoryId)
+                    ? "Based on your enrolled course categories."
+                    : "Popular with learners."))
             .ToArray();
     }
+
+    private sealed record RecommendationCandidate(
+        Guid CourseId, string Title, string Summary, Guid CategoryId, string? ImageUrl);
 }

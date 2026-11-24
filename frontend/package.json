@@ -4,9 +4,11 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:lan": "ng serve --host 0.0.0.0",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test --no-watch --no-progress",
+    "test:watch": "ng test"
   },
   "prettier": {
     "printWidth": 100,
@@ -36,6 +38,12 @@
     "@angular/build": "^21.0.0",
     "@angular/cli": "^21.0.0",
     "@angular/compiler-cli": "^21.0.0",
-    "typescript": "~5.9.2"
+    "jsdom": "^29.1.1",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "glob": "^14.0.2",
+    "minimatch": "^11.0.1"
   }
 }

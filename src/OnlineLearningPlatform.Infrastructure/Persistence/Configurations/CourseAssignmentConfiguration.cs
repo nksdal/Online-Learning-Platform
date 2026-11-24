@@ -8,7 +8,8 @@ public sealed class CourseAssignmentConfiguration : IEntityTypeConfiguration<Cou
 {
     public void Configure(EntityTypeBuilder<CourseAssignment> builder)
     {
-        builder.ToTable("Assignments");
+        builder.ToTable("Assignments", table => table.HasCheckConstraint(
+            "CK_Assignments_MaxScore_Range", "[MaxScore] > 0 AND [MaxScore] <= 10.0"));
         builder.HasKey(assignment => assignment.Id);
         builder.Property(assignment => assignment.Title).IsRequired().HasMaxLength(CourseAssignment.TitleMaxLength);
         builder.Property(assignment => assignment.Instructions).IsRequired().HasMaxLength(CourseAssignment.InstructionsMaxLength);

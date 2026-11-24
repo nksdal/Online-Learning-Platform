@@ -20,7 +20,7 @@ public sealed class UserManagementService(
     public async Task<UserProfileResponse?> GetProfileAsync(Guid userId, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
-        if (user is null)
+        if (user is null || user.IsDeleted)
         {
             return null;
         }
@@ -34,7 +34,7 @@ public sealed class UserManagementService(
         CancellationToken cancellationToken)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
-        if (user is null)
+        if (user is null || user.IsDeleted)
         {
             return null;
         }
@@ -105,7 +105,7 @@ public sealed class UserManagementService(
         AdminUserListQuery query,
         CancellationToken cancellationToken)
     {
-        IQueryable<ApplicationUser> users = userManager.Users.AsNoTracking();
+        IQueryable<ApplicationUser> users = userManager.Users.AsNoTracking().Where(user => !user.IsDeleted);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim();
@@ -123,19 +123,23 @@ public sealed class UserManagementService(
             .Take(query.PageSize)
             .ToListAsync(cancellationToken);
 
-        var summaries = new List<AdminUserSummary>(page.Count);
-        foreach (var user in page)
-        {
-            var roles = await userManager.GetRolesAsync(user);
-            summaries.Add(new AdminUserSummary(
-                user.Id,
-                user.Email ?? string.Empty,
-                user.FirstName,
-                user.LastName,
-                user.IsActive,
-                user.MustChangePassword,
-                roles.ToArray()));
-        }
+        var userIds = page.Select(user => user.Id).ToArray();
+        var roleRows = await (from userRole in dbContext.UserRoles.AsNoTracking()
+                              join role in dbContext.Roles.AsNoTracking() on userRole.RoleId equals role.Id
+                              where userIds.Contains(userRole.UserId)
+                              select new { userRole.UserId, role.Name }).ToListAsync(cancellationToken);
+        var rolesByUser = roleRows
+            .GroupBy(row => row.UserId)
+            .ToDictionary(group => group.Key, group => group.Select(row => row.Name!).ToArray());
+        var summaries = page.Select(user => new AdminUserSummary(
+            user.Id,
+            user.Email ?? string.Empty,
+            user.FirstName,
+            user.LastName,
+            user.IsActive,
+            user.MustChangePassword,
+            rolesByUser.GetValueOrDefault(user.Id) ?? []))
+            .ToArray();
 
         return new PagedAdminUsersResponse(query.Page, query.PageSize, totalCount, summaries);
     }
@@ -151,7 +155,7 @@ public sealed class UserManagementService(
         return ExecuteTransactionAsync(async () =>
         {
             var target = await userManager.FindByIdAsync(targetUserId.ToString());
-            if (target is null)
+            if (target is null || target.IsDeleted)
             {
                 return UserManagementOutcome.NotFound;
             }
@@ -200,7 +204,7 @@ public sealed class UserManagementService(
         CancellationToken cancellationToken) => ExecuteTransactionAsync(async () =>
     {
         var target = await userManager.FindByIdAsync(targetUserId.ToString());
-        if (target is null)
+        if (target is null || target.IsDeleted)
         {
             return UserManagementOutcome.NotFound;
         }
@@ -235,6 +239,88 @@ public sealed class UserManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return UserManagementOutcome.Succeeded;
     }, cancellationToken);
+
+    public async Task<UserManagementOutcome> RemoveUserAsync(
+        Guid actorUserId,
+        Guid targetUserId,
+        string? ipAddress,
+        CancellationToken cancellationToken)
+    {
+        var result = await ExecuteTransactionAsync(async () =>
+        {
+            var target = await userManager.FindByIdAsync(targetUserId.ToString());
+            if (target is null || target.IsDeleted)
+            {
+                return (Outcome: UserManagementOutcome.NotFound, ProfileImagePublicId: (string?)null);
+            }
+
+            var roles = (await userManager.GetRolesAsync(target)).ToArray();
+            if (target.IsActive && roles.Contains(Roles.Admin) && !await HasOtherActiveAdminAsync(target.Id))
+            {
+                return (Outcome: UserManagementOutcome.LastActiveAdmin, ProfileImagePublicId: (string?)null);
+            }
+
+            var profileImagePublicId = target.ProfileImagePublicId;
+            if (roles.Length > 0)
+            {
+                EnsureIdentitySucceeded(await userManager.RemoveFromRolesAsync(target, roles),
+                    "Could not remove the user's existing roles.");
+            }
+
+            var claims = await dbContext.UserClaims.Where(claim => claim.UserId == target.Id).ToListAsync(cancellationToken);
+            var logins = await dbContext.UserLogins.Where(login => login.UserId == target.Id).ToListAsync(cancellationToken);
+            var identityTokens = await dbContext.UserTokens.Where(token => token.UserId == target.Id).ToListAsync(cancellationToken);
+            dbContext.UserClaims.RemoveRange(claims);
+            dbContext.UserLogins.RemoveRange(logins);
+            dbContext.UserTokens.RemoveRange(identityTokens);
+
+            var refreshTokens = await dbContext.RefreshTokens
+                .Where(token => token.UserId == target.Id)
+                .ToListAsync(cancellationToken);
+            dbContext.RefreshTokens.RemoveRange(refreshTokens);
+
+            var anonymizedEmail = $"removed-{target.Id:N}@deleted.invalid";
+            target.UserName = anonymizedEmail;
+            target.NormalizedUserName = userManager.NormalizeName(anonymizedEmail);
+            target.Email = anonymizedEmail;
+            target.NormalizedEmail = userManager.NormalizeEmail(anonymizedEmail);
+            target.EmailConfirmed = false;
+            target.PhoneNumber = null;
+            target.PhoneNumberConfirmed = false;
+            target.TwoFactorEnabled = false;
+            target.PasswordHash = null;
+            target.LockoutEnd = null;
+            target.AccessFailedCount = 0;
+            target.FirstName = "Deleted";
+            target.LastName = "User";
+            target.TimeZoneId = ApplicationUser.DefaultTimeZoneId;
+            target.ProfileImageUrl = null;
+            target.ProfileImagePublicId = null;
+            target.IsActive = false;
+            target.IsDeleted = true;
+            target.MustChangePassword = false;
+            EnsureIdentitySucceeded(await userManager.UpdateSecurityStampAsync(target),
+                "Could not invalidate the removed user's access tokens.");
+
+            dbContext.AuditLogs.Add(AuditLog.Create(
+                timeProvider.GetUtcNow().UtcDateTime,
+                "UserRemoved",
+                "ApplicationUser",
+                actorUserId,
+                target.Id.ToString(),
+                "The account was anonymized; courses and learning history were retained.",
+                ipAddress));
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return (Outcome: UserManagementOutcome.Succeeded, ProfileImagePublicId: profileImagePublicId);
+        }, cancellationToken);
+
+        if (result.Outcome == UserManagementOutcome.Succeeded && !string.IsNullOrWhiteSpace(result.ProfileImagePublicId))
+        {
+            await TryDeleteProfileImageAsync(result.ProfileImagePublicId, targetUserId, cancellationToken);
+        }
+
+        return result.Outcome;
+    }
 
     private async Task<bool> HasOtherActiveAdminAsync(Guid excludedUserId)
     {

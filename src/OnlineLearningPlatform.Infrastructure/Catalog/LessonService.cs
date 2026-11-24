@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using OnlineLearningPlatform.Application.Abstractions;
 using OnlineLearningPlatform.Application.Catalog;
 using OnlineLearningPlatform.Application.Common.Exceptions;
 using OnlineLearningPlatform.Domain.Auditing;
@@ -7,7 +9,11 @@ using OnlineLearningPlatform.Infrastructure.Persistence;
 
 namespace OnlineLearningPlatform.Infrastructure.Catalog;
 
-public sealed class LessonService(ApplicationDbContext db, TimeProvider clock) : ILessonService
+public sealed class LessonService(
+    ApplicationDbContext db,
+    TimeProvider clock,
+    IMediaAssetStorage mediaStorage,
+    ILogger<LessonService> logger) : ILessonService
 {
     public async Task<IReadOnlyCollection<LessonResponse>> ListForStudentAsync(Guid courseId, Guid studentId, CancellationToken ct)
     {
@@ -61,8 +67,49 @@ public sealed class LessonService(ApplicationDbContext db, TimeProvider clock) :
             ?? throw new NotFoundException("Lesson was not found.");
         await GetEditableCourseAsync(lesson.CourseId, teacherId, ct);
         AddAudit(teacherId, "LessonDeleted", lesson);
+        var videoPublicId = lesson.VideoPublicId;
         db.Lessons.Remove(lesson);
         await db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(videoPublicId))
+            await TryDeleteVideoAsync(videoPublicId, lessonId);
+    }
+
+    public async Task<LessonResponse> UploadVideoAsync(
+        Guid lessonId, Guid teacherId, string fileName, string contentType, Stream content, CancellationToken ct)
+    {
+        var lesson = await db.Lessons.SingleOrDefaultAsync(item => item.Id == lessonId, ct)
+            ?? throw new NotFoundException("Lesson was not found.");
+        await GetEditableCourseAsync(lesson.CourseId, teacherId, ct);
+
+        var uploaded = await mediaStorage.UploadAsync(
+            MediaAssetResourceType.Video, $"nikladori/lessons/{lessonId}", fileName, contentType, content, ct);
+        var previousPublicId = lesson.SetVideo(uploaded.SecureUrl, uploaded.PublicId);
+        AddAudit(teacherId, "LessonVideoUploaded", lesson);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch
+        {
+            await TryDeleteUploadedVideoAsync(uploaded.PublicId, lessonId);
+            throw;
+        }
+
+        if (!string.IsNullOrWhiteSpace(previousPublicId) && previousPublicId != uploaded.PublicId)
+            await TryDeleteVideoAsync(previousPublicId, lessonId);
+        return ToResponse(lesson);
+    }
+
+    public async Task RemoveVideoAsync(Guid lessonId, Guid teacherId, CancellationToken ct)
+    {
+        var lesson = await db.Lessons.SingleOrDefaultAsync(item => item.Id == lessonId, ct)
+            ?? throw new NotFoundException("Lesson was not found.");
+        await GetEditableCourseAsync(lesson.CourseId, teacherId, ct);
+        var previousPublicId = lesson.RemoveVideo();
+        AddAudit(teacherId, "LessonVideoRemoved", lesson);
+        await db.SaveChangesAsync(ct);
+        if (!string.IsNullOrWhiteSpace(previousPublicId))
+            await TryDeleteVideoAsync(previousPublicId, lessonId);
     }
 
     private async Task<Course> GetEditableCourseAsync(Guid courseId, Guid teacherId, CancellationToken ct)
@@ -85,5 +132,30 @@ public sealed class LessonService(ApplicationDbContext db, TimeProvider clock) :
         $"Lesson '{lesson.Title}' in course {lesson.CourseId} was changed."));
 
     private static LessonResponse ToResponse(Lesson lesson) => new(
-        lesson.Id, lesson.CourseId, lesson.Title, lesson.Content, lesson.Position, lesson.CreatedAtUtc, lesson.UpdatedAtUtc);
+        lesson.Id, lesson.CourseId, lesson.Title, lesson.Content, lesson.Position, lesson.VideoUrl,
+        lesson.CreatedAtUtc, lesson.UpdatedAtUtc);
+
+    private async Task TryDeleteVideoAsync(string publicId, Guid lessonId)
+    {
+        try
+        {
+            await mediaStorage.DeleteAsync(MediaAssetResourceType.Video, publicId, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not remove Cloudinary video for lesson {LessonId}.", lessonId);
+        }
+    }
+
+    private async Task TryDeleteUploadedVideoAsync(string publicId, Guid lessonId)
+    {
+        try
+        {
+            await mediaStorage.DeleteAsync(MediaAssetResourceType.Video, publicId, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Could not clean up newly uploaded Cloudinary video for lesson {LessonId}.", lessonId);
+        }
+    }
 }

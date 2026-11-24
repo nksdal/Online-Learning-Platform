@@ -3,6 +3,15 @@
 Legend: `[x]` done and observed, `[ ]` pending, `[~]` deferred (Tier 3, cut first if time is short).
 Only tick an item after you have seen the real result (build output, test run, CI run).
 
+## Current quality-fix verification (2026-11-25)
+
+- [x] Previously failing .NET suite is green: 21 unit tests and 52 integration tests pass.
+- [x] Frontend tests and production build pass: 3 tests across 2 files; `npm run build` succeeds.
+- [x] Course contract routes and course duration/price/difficulty/prerequisites are implemented; local SQL migration completed.
+- [x] Horizontal overflow fixed and checked at 319, 320, 360, 375, 768, and 1440px; public/protected route widths were measured.
+- [x] Grading documentation reflects the 10.0 cap; see [project readiness](project-readiness.md) and [presentation/demo walkthrough](presentation.md).
+- [ ] Complete one live browser walkthrough signed in separately as Student, Teacher, and Admin before presenting. API integration coverage is green, but it is not a substitute for this UI check.
+
 ## Environment (confirmed on the developer machine)
 
 - [x] .NET SDKs 10.0.203 and 10.0.401 installed
@@ -32,12 +41,12 @@ Only tick an item after you have seen the real result (build output, test run, C
 - [x] CORS allow-list for the Angular frontend (`http://localhost:4200` by default; configured origins only)
 - [x] JWT bearer authentication setup (signing key from secrets) and role policies - signed token issuance/validation and anonymous/authorized/role-protected integration checks pass
 - [x] Rate limiting for authentication endpoints (5 requests per minute per IP)
-- [x] Student registration and email verification; real SMTP provider configured, delivery setup pending
+- [x] Student registration and email verification; Gmail SMTP sender configured with hashed, single-use 24-hour verification tokens
 - [x] Login and short-lived access-token issuance after email confirmation
 - [x] Refresh-token rotation, family reuse detection, logout and logout-all
 - [x] Forgot-password and password reset with email delivery and session revocation
 - [x] Seeded admin from optional deployment secrets with `MustChangePassword`; protected routes require password change
-- [ ] Real local email delivery: Gmail SMTP is wired; add an App Password to `.env` and confirm a message reaches a real inbox. Use a dedicated transactional provider before public launch.
+- [ ] Real local email delivery: add a dedicated Gmail account and App Password to `.env`, then confirm a message reaches the inbox or spam folder.
 - [x] User and role management (last-active-admin protection, audit log, immediate access-token invalidation)
 - [x] Categories: public active-category list; admin create, edit, activate/deactivate; audit logging; `AddCategories` migration generated; build and 57 tests pass
 - [x] Course draft, submission, admin approval/rejection, teacher resubmission, public published catalogue, and terminal archive; `AddCourses` migration generated and covered by lifecycle tests
@@ -68,9 +77,9 @@ Only tick an item after you have seen the real result (build output, test run, C
 
 ## Deferred (Tier 3)
 
-- [~] Video uploads
-- [~] Submission file attachments
-- [~] Advanced statistics dashboard
+- [x] Lesson video uploads: signed Cloudinary MP4/WebM upload (100 MB limit), teacher replace/remove actions, student lesson playback; migration generated; .NET build and Angular production build pass
+- [x] Submission file attachments: private Cloudinary storage for common school documents/images (10 MB limit), multipart student submissions, owner/course/admin-authorized download with expiring signed Cloudinary links; migration generated; .NET build and Angular production build pass
+- [x] Advanced statistics dashboard: admin-only API and UI with selectable reporting windows, account/course/enrollment/completion/submission/grade metrics, 12-month activity, and most-enrolled courses; .NET build and Angular production build pass
 - [~] Full HTTPS deployment (needs a domain or an agreed alternative)
 
 ## Open decisions

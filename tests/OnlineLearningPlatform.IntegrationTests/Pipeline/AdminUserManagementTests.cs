@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using OnlineLearningPlatform.Application.Abstractions;
+using OnlineLearningPlatform.Domain.Catalog;
 using OnlineLearningPlatform.Domain.Identity;
 using OnlineLearningPlatform.Infrastructure.Persistence;
 using OnlineLearningPlatform.IntegrationTests.TestSupport;
@@ -19,18 +20,31 @@ public sealed class AdminUserManagementTests
         using var factory = new AuthApiFactory();
         using var client = factory.CreateClient();
         var admin = await AddUserAsync(factory, "admin@example.test", Roles.Admin);
-        await AddUserAsync(factory, "student@example.test", Roles.Student);
+        var student = await AddUserAsync(factory, "student@example.test", Roles.Student);
         SetBearer(client, admin.Token);
 
         var profile = await client.GetFromJsonAsync<ProfileDto>("/api/users/me");
-        var page = await client.GetFromJsonAsync<AdminUsersDto>("/api/admin/users?page=1&pageSize=1&search=example.test");
+        var studentDetails = await client.GetFromJsonAsync<ProfileDto>($"/api/users/{student.Id}");
+        var updateStudent = await client.PutAsJsonAsync($"/api/users/{student.Id}", new
+        {
+            firstName = "Updated",
+            lastName = "Learner",
+            timeZoneId = "Asia/Tbilisi",
+        });
+        var page = await client.GetFromJsonAsync<AdminUsersDto>("/api/users?page=1&pageSize=2&search=example.test");
 
         Assert.NotNull(profile);
         Assert.Equal(admin.Id, profile.Id);
         Assert.Contains(Roles.Admin, profile.Roles);
+        Assert.NotNull(studentDetails);
+        Assert.Equal(student.Id, studentDetails.Id);
+        Assert.Equal(HttpStatusCode.OK, updateStudent.StatusCode);
+        Assert.Equal("Updated", (await updateStudent.Content.ReadFromJsonAsync<ProfileDto>())!.FirstName);
         Assert.NotNull(page);
         Assert.Equal(2, page.TotalCount);
-        Assert.Single(page.Users);
+        Assert.Equal(2, page.Users.Length);
+        Assert.Contains(Roles.Admin, page.Users.Single(user => user.Id == admin.Id).Roles);
+        Assert.Contains(Roles.Student, page.Users.Single(user => user.Email == "student@example.test").Roles);
     }
 
     [Fact]
@@ -78,9 +92,11 @@ public sealed class AdminUserManagementTests
         var deactivate = await client.PutAsJsonAsync(
             $"/api/admin/users/{admin.Id}/status",
             new { isActive = false });
+        var remove = await client.DeleteAsync($"/api/admin/users/{admin.Id}");
 
         Assert.Equal(HttpStatusCode.Conflict, demote.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, deactivate.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, remove.StatusCode);
         using var scope = factory.Services.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var unchangedAdmin = await userManager.FindByIdAsync(admin.Id.ToString());
@@ -117,6 +133,63 @@ public sealed class AdminUserManagementTests
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var audit = await dbContext.AuditLogs.SingleAsync();
         Assert.Equal("UserDeactivated", audit.Action);
+    }
+
+    [Fact]
+    public async Task Admin_can_remove_user_while_preserving_courses_and_learning_history()
+    {
+        using var factory = new AuthApiFactory();
+        using var adminClient = factory.CreateClient();
+        using var targetClient = factory.CreateClient();
+        var admin = await AddUserAsync(factory, "admin@example.test", Roles.Admin);
+        var target = await AddUserAsync(factory, "teacher@example.test", Roles.Teacher);
+        SetBearer(adminClient, admin.Token);
+        SetBearer(targetClient, target.Token);
+
+        Guid courseId;
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var category = Category.Create("Removal test", null);
+            var course = Course.Create(target.Id, category.Id, "Retained course", "History stays", "Course details.");
+            dbContext.Categories.Add(category);
+            dbContext.Courses.Add(course);
+            dbContext.Enrollments.Add(Enrollment.Create(course.Id, target.Id, DateTime.UtcNow));
+            dbContext.CourseDiscussionPosts.Add(CourseDiscussionPost.Create(course.Id, target.Id, null, "A retained post."));
+            await dbContext.SaveChangesAsync();
+            courseId = course.Id;
+        }
+
+        var response = await adminClient.DeleteAsync($"/api/users/{target.Id}");
+        var staleTokenResponse = await targetClient.GetAsync("/api/users/me");
+        var users = await adminClient.GetFromJsonAsync<AdminUsersDto>("/api/admin/users?page=1&pageSize=20");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, staleTokenResponse.StatusCode);
+        Assert.NotNull(users);
+        Assert.Single(users.Users);
+        Assert.DoesNotContain(users.Users, user => user.Id == target.Id);
+
+        using var verificationScope = factory.Services.CreateScope();
+        var userManager = verificationScope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var anonymizedUser = await userManager.FindByIdAsync(target.Id.ToString());
+        Assert.NotNull(anonymizedUser);
+        Assert.True(anonymizedUser.IsDeleted);
+        Assert.False(anonymizedUser.IsActive);
+        Assert.Equal("Deleted", anonymizedUser.FirstName);
+        Assert.Equal("User", anonymizedUser.LastName);
+        Assert.EndsWith("@deleted.invalid", anonymizedUser.Email);
+        Assert.Null(anonymizedUser.PasswordHash);
+        Assert.Empty(await userManager.GetRolesAsync(anonymizedUser));
+
+        var dbContextAfterRemoval = verificationScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.True(await dbContextAfterRemoval.Courses.AnyAsync(course => course.Id == courseId));
+        Assert.True(await dbContextAfterRemoval.Enrollments.AnyAsync(enrollment => enrollment.StudentUserId == target.Id));
+        Assert.True(await dbContextAfterRemoval.CourseDiscussionPosts.AnyAsync(post => post.AuthorUserId == target.Id));
+        var audit = await dbContextAfterRemoval.AuditLogs.SingleAsync();
+        Assert.Equal(admin.Id, audit.ActorUserId);
+        Assert.Equal("UserRemoved", audit.Action);
+        Assert.Equal(target.Id.ToString(), audit.EntityId);
     }
 
     [Fact]

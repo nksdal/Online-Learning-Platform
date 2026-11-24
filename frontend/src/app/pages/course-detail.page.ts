@@ -27,7 +27,8 @@ import { Course } from '../core/models';
           <div class="detail-visual" [class.has-photo]="item.imageUrl" aria-hidden="true">@if (item.imageUrl) { <img class="detail-photo" [src]="item.imageUrl" alt="" decoding="async"> } @else { <div class="detail-shape">✳</div> }<span>FIELD NOTES</span><b>LEARN<br>BY DOING</b></div>
         </section>
         <section class="detail-body"><div><span class="eyebrow">THE COURSE</span><h2>Make room for what’s next.</h2></div><div class="description">{{ item.description }}</div></section>
-        <section class="detail-meta"><span>SELF-PACED LEARNING</span><span>BUILT FOR REAL LIFE</span><span>START WHEN YOU’RE READY</span></section>
+        <section class="detail-meta"><span>{{ item.duration }}</span><span>{{ item.difficulty }}</span><span>{{ item.price === 0 ? 'Free course' : (item.price | currency:'GEL':'symbol-narrow':'1.2-2') }}</span></section>
+        @if (item.prerequisites) { <section class="detail-prerequisites"><b>Before you begin</b><p>{{ item.prerequisites }}</p></section> }
       }
     </main>
   `,

@@ -4,7 +4,8 @@ namespace OnlineLearningPlatform.Application.Catalog;
 
 public sealed record LessonWriteRequest(string Title, string Content, int Position);
 public sealed record LessonResponse(
-    Guid Id, Guid CourseId, string Title, string Content, int Position, DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
+    Guid Id, Guid CourseId, string Title, string Content, int Position, string? VideoUrl,
+    DateTime CreatedAtUtc, DateTime UpdatedAtUtc);
 public sealed record EnrollmentResponse(
     Guid Id, Guid CourseId, string CourseTitle, string CourseSummary, string? CourseImageUrl, string CourseStatus, DateTime EnrolledAtUtc);
 public sealed record LessonProgressItem(Guid LessonId, string Title, int Position, bool IsCompleted, DateTime? CompletedAtUtc);
@@ -30,6 +31,9 @@ public interface ILessonService
     Task<IReadOnlyCollection<LessonResponse>> ListForAdminAsync(Guid courseId, CancellationToken ct);
     Task<LessonResponse> CreateAsync(Guid courseId, Guid teacherId, LessonWriteRequest request, CancellationToken ct);
     Task<LessonResponse> UpdateAsync(Guid lessonId, Guid teacherId, LessonWriteRequest request, CancellationToken ct);
+    Task<LessonResponse> UploadVideoAsync(
+        Guid lessonId, Guid teacherId, string fileName, string contentType, Stream content, CancellationToken ct);
+    Task RemoveVideoAsync(Guid lessonId, Guid teacherId, CancellationToken ct);
     Task DeleteAsync(Guid lessonId, Guid teacherId, CancellationToken ct);
 }
 
@@ -42,6 +46,7 @@ public interface IEnrollmentService
 public interface IProgressService
 {
     Task<CourseProgressResponse> GetCourseProgressAsync(Guid courseId, Guid studentId, CancellationToken ct);
+    Task<IReadOnlyCollection<CourseProgressResponse>> GetMyProgressAsync(Guid studentId, CancellationToken ct);
     Task<LessonCompletionResponse> CompleteLessonAsync(Guid lessonId, Guid studentId, CancellationToken ct);
     Task DeleteLessonCompletionAsync(Guid lessonId, Guid studentId, CancellationToken ct);
 }

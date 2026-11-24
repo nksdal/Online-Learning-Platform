@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,8 +52,9 @@ public sealed class PasswordRecoveryTests
         await client.PostAsJsonAsync("/api/auth/forgot-password", new ForgotPasswordRequest(email));
         var resetEmail = factory.Services.GetRequiredService<CapturingEmailSender>().Messages
             .Single(message => message.Subject.Contains("Reset", StringComparison.OrdinalIgnoreCase));
-        var resetUrl = resetEmail.TextBody[(resetEmail.TextBody.LastIndexOf(' ') + 1)..].Trim();
-        var query = QueryHelpers.ParseQuery(new Uri(resetUrl).Query);
+        var resetUrlMatch = Regex.Match(resetEmail.TextBody, @"https?://[^\s<>\""']+", RegexOptions.IgnoreCase);
+        Assert.True(resetUrlMatch.Success, "The reset email should contain an absolute link.");
+        var query = QueryHelpers.ParseQuery(new Uri(resetUrlMatch.Value).Query);
         var resetRequest = new ResetPasswordRequest(
             Guid.Parse(query["userId"].ToString()),
             query["token"].ToString(),

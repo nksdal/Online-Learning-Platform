@@ -27,5 +27,8 @@ WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_HTTP_PORTS=8080
 COPY --from=build /app/publish ./
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys \
+    && chown -R $APP_UID:$APP_UID /home/app/.aspnet \
+    && chmod 700 /home/app/.aspnet/DataProtection-Keys
 USER $APP_UID
 ENTRYPOINT ["dotnet", "OnlineLearningPlatform.Api.dll"]

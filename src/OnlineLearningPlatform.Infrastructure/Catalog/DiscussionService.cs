@@ -9,27 +9,26 @@ namespace OnlineLearningPlatform.Infrastructure.Catalog;
 
 public sealed class DiscussionService(ApplicationDbContext db, TimeProvider clock) : IDiscussionService
 {
-    public async Task<IReadOnlyCollection<DiscussionPostResponse>> ListForStudentAsync(Guid courseId, Guid studentId, CancellationToken ct)
+    public async Task<DiscussionPostsPageResponse> ListForStudentAsync(
+        Guid courseId, Guid studentId, int page, int pageSize, CancellationToken ct)
     {
         await EnsureStudentCanReadAsync(courseId, studentId, ct);
-        var posts = await db.CourseDiscussionPosts.AsNoTracking()
-            .Where(post => post.CourseId == courseId && !post.IsHidden)
-            .OrderBy(post => post.CreatedAtUtc).ToListAsync(ct);
-        return posts.Select(ToResponse).ToArray();
+        return await ListPostsAsync(courseId, page, pageSize, includeHidden: false, ct);
     }
 
-    public async Task<IReadOnlyCollection<DiscussionPostResponse>> ListForTeacherAsync(Guid courseId, Guid teacherId, CancellationToken ct)
+    public async Task<DiscussionPostsPageResponse> ListForTeacherAsync(
+        Guid courseId, Guid teacherId, int page, int pageSize, CancellationToken ct)
     {
         if (!await db.Courses.AnyAsync(course => course.Id == courseId && course.InstructorUserId == teacherId, ct))
             throw new NotFoundException("Course was not found.");
-        return await ListAllPostsAsync(courseId, ct);
+        return await ListPostsAsync(courseId, page, pageSize, includeHidden: true, ct);
     }
 
-    public async Task<IReadOnlyCollection<DiscussionPostResponse>> ListForAdminAsync(Guid courseId, CancellationToken ct)
+    public async Task<DiscussionPostsPageResponse> ListForAdminAsync(Guid courseId, int page, int pageSize, CancellationToken ct)
     {
         if (!await db.Courses.AnyAsync(course => course.Id == courseId, ct))
             throw new NotFoundException("Course was not found.");
-        return await ListAllPostsAsync(courseId, ct);
+        return await ListPostsAsync(courseId, page, pageSize, includeHidden: true, ct);
     }
 
     public async Task<DiscussionPostResponse> CreateAsync(Guid courseId, Guid studentId, DiscussionPostRequest request, CancellationToken ct)
@@ -85,9 +84,28 @@ public sealed class DiscussionService(ApplicationDbContext db, TimeProvider cloc
             throw new NotFoundException("Course was not found.");
     }
 
-    private async Task<IReadOnlyCollection<DiscussionPostResponse>> ListAllPostsAsync(Guid courseId, CancellationToken ct) =>
-        (await db.CourseDiscussionPosts.AsNoTracking().Where(post => post.CourseId == courseId)
-            .OrderBy(post => post.CreatedAtUtc).ToListAsync(ct)).Select(ToResponse).ToArray();
+    private async Task<DiscussionPostsPageResponse> ListPostsAsync(
+        Guid courseId, int page, int pageSize, bool includeHidden, CancellationToken ct)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+        var posts = db.CourseDiscussionPosts.AsNoTracking().Where(post => post.CourseId == courseId);
+        if (!includeHidden)
+            posts = posts.Where(post => !post.IsHidden);
+
+        var totalCount = await posts.CountAsync(ct);
+        var skip = (int)Math.Min((long)(page - 1) * pageSize, int.MaxValue);
+        var items = await posts
+            .OrderByDescending(post => post.CreatedAtUtc)
+            .ThenByDescending(post => post.Id)
+            .Skip(skip)
+            .Take(pageSize)
+            .Select(post => new DiscussionPostResponse(
+                post.Id, post.CourseId, post.AuthorUserId, post.ParentPostId, post.Body, post.IsHidden,
+                post.ModerationReason, post.CreatedAtUtc, post.UpdatedAtUtc))
+            .ToArrayAsync(ct);
+        return new DiscussionPostsPageResponse(page, pageSize, totalCount, items);
+    }
 
     private static DiscussionPostResponse ToResponse(CourseDiscussionPost post) => new(
         post.Id, post.CourseId, post.AuthorUserId, post.ParentPostId, post.Body, post.IsHidden,

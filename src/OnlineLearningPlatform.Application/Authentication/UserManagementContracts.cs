@@ -108,4 +108,10 @@ public interface IUserManagementService
         bool isActive,
         string? ipAddress,
         CancellationToken cancellationToken);
+
+    Task<UserManagementOutcome> RemoveUserAsync(
+        Guid actorUserId,
+        Guid targetUserId,
+        string? ipAddress,
+        CancellationToken cancellationToken);
 }

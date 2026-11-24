@@ -12,6 +12,8 @@ public sealed class LessonConfiguration : IEntityTypeConfiguration<Lesson>
         builder.HasKey(lesson => lesson.Id);
         builder.Property(lesson => lesson.Title).IsRequired().HasMaxLength(Lesson.TitleMaxLength);
         builder.Property(lesson => lesson.Content).IsRequired().HasMaxLength(Lesson.ContentMaxLength);
+        builder.Property(lesson => lesson.VideoUrl).HasMaxLength(Lesson.VideoUrlMaxLength);
+        builder.Property(lesson => lesson.VideoPublicId).HasMaxLength(Lesson.VideoPublicIdMaxLength);
         builder.HasOne<Course>().WithMany().HasForeignKey(lesson => lesson.CourseId).OnDelete(DeleteBehavior.Cascade);
         builder.HasIndex(lesson => new { lesson.CourseId, lesson.Position });
     }

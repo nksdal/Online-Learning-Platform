@@ -1,15 +1,18 @@
 using System.Text.Json.Serialization;
+using System.Net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using FluentValidation;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
 using OnlineLearningPlatform.Api.Authentication;
 using OnlineLearningPlatform.Api.Documentation;
 using OnlineLearningPlatform.Api.ErrorHandling;
+using OnlineLearningPlatform.Api.Security;
 using OnlineLearningPlatform.Api.Validation;
 using OnlineLearningPlatform.Application.Abstractions;
 using OnlineLearningPlatform.Infrastructure;
@@ -17,6 +20,26 @@ using Serilog;
 using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
+var trustedProxyAddresses = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [];
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+    foreach (var proxyAddress in trustedProxyAddresses)
+    {
+        if (!IPAddress.TryParse(proxyAddress, out var parsedAddress))
+        {
+            throw new InvalidOperationException("ForwardedHeaders:KnownProxies must contain valid IP addresses.");
+        }
+
+        options.KnownProxies.Add(parsedAddress);
+    }
+});
 
 // ---- Logging: Serilog, configured from the "Serilog" section of appsettings --------------------
 builder.Host.UseSerilog((context, services, loggerConfiguration) => loggerConfiguration
@@ -87,13 +110,13 @@ builder.Services.AddCors(options => options.AddPolicy("Frontend", policy => poli
     .WithHeaders("Content-Type", "Authorization", "X-Refresh-Request")
     .AllowCredentials()));
 
-// Identity protects email-confirmation and password-reset tokens with Data Protection keys.
-// The key ring must be persisted and shared before deployment, or every restart invalidates
-// outstanding tokens (tracked in docs/checklist.md, Week 4).
+// Identity protects email-change confirmation tokens with Data Protection. The key ring must be
+// persisted and shared before deployment, or every restart invalidates outstanding change links.
 builder.Services.AddDataProtection().SetApplicationName("OnlineLearningPlatform");
 
 // Validators live in the Application layer; the API only runs them (see ValidationFilter).
 builder.Services.AddValidatorsFromAssemblyContaining<IApplicationDbContext>();
+builder.Services.AddValidatorsFromAssemblyContaining<OnlineLearningPlatform.Api.Models.AdminCourseUpdateFormValidator>();
 
 builder.Services
     .AddControllers(options => options.Filters.Add<ValidationFilter>())
@@ -106,6 +129,11 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddSwaggerDocumentation();
 
 var app = builder.Build();
+
+if (app.Environment.IsProduction())
+{
+    ProductionSecurityConfiguration.Validate(app.Configuration);
+}
 
 // Configuration is read AFTER Build() so that every configuration source (including test overrides) is included.
 if (string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("DefaultConnection")))
@@ -121,6 +149,29 @@ var swaggerEnabled = app.Configuration.GetValue<bool>("Swagger:Enabled");
 // Request logging sits outside the exception handler so it records the final status code (500 for a
 // crash) while the handler logs the exception itself exactly once. Only the path is logged, never the
 // query string, so tokens in URLs cannot reach the logs.
+app.UseForwardedHeaders();
+if (app.Environment.IsProduction())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        var headers = context.Response.Headers;
+        headers["X-Content-Type-Options"] = "nosniff";
+        headers["X-Frame-Options"] = "DENY";
+        headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+        headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+        headers.Remove("Server");
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 app.UseSerilogRequestLogging(options =>
 {
     // Docker and load balancers probe /health every few seconds; keep that noise out of the normal log level.

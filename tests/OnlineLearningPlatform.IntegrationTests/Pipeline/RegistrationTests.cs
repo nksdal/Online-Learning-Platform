@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,8 +44,9 @@ public sealed class RegistrationTests
 
         await client.PostAsJsonAsync("/api/auth/register", ValidRegistration("learner@example.test"));
         var email = Assert.Single(factory.Services.GetRequiredService<CapturingEmailSender>().Messages);
-        var verificationUrl = email.TextBody[(email.TextBody.LastIndexOf(' ') + 1)..].Trim();
-        var query = QueryHelpers.ParseQuery(new Uri(verificationUrl).Query);
+        var verificationUrlMatch = Regex.Match(email.TextBody, @"https?://[^\s<>\""']+", RegexOptions.IgnoreCase);
+        Assert.True(verificationUrlMatch.Success, "The verification email should contain an absolute link.");
+        var query = QueryHelpers.ParseQuery(new Uri(verificationUrlMatch.Value).Query);
         var userId = Guid.Parse(query["userId"].ToString());
         var token = query["token"].ToString();
 

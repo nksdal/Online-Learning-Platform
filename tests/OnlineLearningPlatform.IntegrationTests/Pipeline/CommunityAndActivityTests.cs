@@ -53,24 +53,70 @@ public sealed class CommunityAndActivityTests
         var replyResponse = await secondStudent.PostAsJsonAsync($"/api/discussions/{root.Id}/replies",
             new DiscussionPostRequest("Start with the API layer and add tests."));
         Assert.Equal(HttpStatusCode.Created, replyResponse.StatusCode);
+        var reply = await replyResponse.Content.ReadFromJsonAsync<DiscussionPostResponse>();
+        Assert.NotNull(reply);
 
-        var teacherPosts = await teacher.GetFromJsonAsync<DiscussionPostResponse[]>(
+        var teacherPosts = await teacher.GetFromJsonAsync<DiscussionPostsPageResponse>(
             $"/api/teacher/courses/{course.Id}/discussions");
-        Assert.Equal(2, teacherPosts!.Length);
+        Assert.Equal(2, teacherPosts!.TotalCount);
+        Assert.Equal(2, teacherPosts.Items.Count);
+        Assert.Contains(teacherPosts.Items, post => post.Id == reply!.Id && post.ParentPostId == root.Id);
         var hidden = await teacher.PutAsJsonAsync($"/api/teacher/discussions/{root.Id}/moderation",
             new ModerateDiscussionRequest(true, "Contains off-topic material."));
         Assert.Equal(HttpStatusCode.OK, hidden.StatusCode);
-        Assert.Single(await firstStudent.GetFromJsonAsync<DiscussionPostResponse[]>(
-            $"/api/courses/{course.Id}/discussions") ?? []);
+        var visiblePosts = await firstStudent.GetFromJsonAsync<DiscussionPostsPageResponse>(
+            $"/api/courses/{course.Id}/discussions");
+        Assert.Single(visiblePosts!.Items);
+        Assert.Equal(1, visiblePosts.TotalCount);
 
-        var adminPosts = await admin.GetFromJsonAsync<DiscussionPostResponse[]>(
+        var adminPosts = await admin.GetFromJsonAsync<DiscussionPostsPageResponse>(
             $"/api/admin/courses/{course.Id}/discussions");
-        Assert.Equal(2, adminPosts!.Length);
-        Assert.Contains(adminPosts, post => post.Id == root.Id && post.IsHidden);
+        Assert.Equal(2, adminPosts!.Items.Count);
+        Assert.Contains(adminPosts.Items, post => post.Id == root.Id && post.IsHidden);
         Assert.Equal(HttpStatusCode.OK, (await admin.PutAsJsonAsync(
             $"/api/admin/discussions/{root.Id}/moderation", new ModerateDiscussionRequest(false, null))).StatusCode);
-        Assert.Equal(2, (await firstStudent.GetFromJsonAsync<DiscussionPostResponse[]>(
-            $"/api/courses/{course.Id}/discussions"))!.Length);
+        Assert.Equal(2, (await firstStudent.GetFromJsonAsync<DiscussionPostsPageResponse>(
+            $"/api/courses/{course.Id}/discussions"))!.Items.Count);
+    }
+
+    [Fact]
+    public async Task Discussion_lists_cap_pages_and_report_the_total_count()
+    {
+        using var factory = new AuthApiFactory();
+        using var teacher = factory.CreateClient();
+        using var admin = factory.CreateClient();
+        using var student = factory.CreateClient();
+        var categoryId = await CreateCategoryAsync(factory, "Discussion pages");
+        var (_, teacherToken) = await CreateUserAsync(factory, "discussion-page-teacher@example.test", Roles.Teacher);
+        var (_, adminToken) = await CreateUserAsync(factory, "discussion-page-admin@example.test", Roles.Admin);
+        var (studentId, studentToken) = await CreateUserAsync(factory, "discussion-page-student@example.test", Roles.Student);
+        teacher.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", teacherToken);
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        student.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", studentToken);
+        var course = await CreatePublishedCourseAsync(teacher, admin, categoryId, "Discussion paging course");
+        Assert.Equal(HttpStatusCode.Created, (await student.PostAsync($"/api/courses/{course.Id}/enrollments", null)).StatusCode);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.CourseDiscussionPosts.AddRange(Enumerable.Range(0, 52).Select(index =>
+                CourseDiscussionPost.Create(course.Id, studentId, null, $"Post {index + 1}")));
+            await db.SaveChangesAsync();
+        }
+
+        var first = await student.GetFromJsonAsync<DiscussionPostsPageResponse>(
+            $"/api/courses/{course.Id}/discussions?page=1&pageSize=100");
+        var second = await student.GetFromJsonAsync<DiscussionPostsPageResponse>(
+            $"/api/courses/{course.Id}/discussions?page=2&pageSize=100");
+
+        Assert.NotNull(first);
+        Assert.Equal(50, first.PageSize);
+        Assert.Equal(52, first.TotalCount);
+        Assert.Equal(50, first.Items.Count);
+        Assert.Equal(2, second!.Items.Count);
+        Assert.Empty(first.Items.Select(post => post.Id).Intersect(second.Items.Select(post => post.Id)));
+        Assert.Equal(first.Items.OrderByDescending(post => post.CreatedAtUtc).ThenByDescending(post => post.Id)
+            .Select(post => post.Id), first.Items.Select(post => post.Id));
     }
 
     [Fact]
@@ -89,6 +135,17 @@ public sealed class CommunityAndActivityTests
         student.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", studentToken);
         var enrolledCourse = await CreatePublishedCourseAsync(teacher, admin, categoryId, "Already enrolled");
         var recommendedCourse = await CreatePublishedCourseAsync(teacher, admin, categoryId, "Recommended course");
+        var otherCategoryId = await CreateCategoryAsync(factory, "Other activity");
+        var otherCategoryCourse = await CreatePublishedCourseAsync(teacher, admin, otherCategoryId, "Other category course");
+        var (_, unstartedStudentToken) = await CreateUserAsync(factory, "activity-new-student@example.test", Roles.Student);
+        using var unstartedStudent = factory.CreateClient();
+        unstartedStudent.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", unstartedStudentToken);
+        var popularResponse = await unstartedStudent.GetAsync("/api/users/me/recommendations?limit=1");
+        Assert.True(popularResponse.IsSuccessStatusCode, await popularResponse.Content.ReadAsStringAsync());
+        var popularRecommendations = await popularResponse.Content.ReadFromJsonAsync<RecommendedCourseResponse[]>();
+        Assert.NotNull(popularRecommendations);
+        Assert.Single(popularRecommendations);
+        Assert.Equal("Popular with learners.", popularRecommendations[0].Reason);
         Assert.Equal(HttpStatusCode.Created, (await student.PostAsync($"/api/courses/{enrolledCourse.Id}/enrollments", null)).StatusCode);
 
         var timezone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Tbilisi");
@@ -114,9 +171,12 @@ public sealed class CommunityAndActivityTests
 
         var recommendations = await student.GetFromJsonAsync<RecommendedCourseResponse[]>("/api/users/me/recommendations?limit=5");
         Assert.NotNull(recommendations);
+        Assert.True(recommendations.Length <= 5);
         Assert.DoesNotContain(recommendations, item => item.CourseId == enrolledCourse.Id);
+        Assert.Equal(recommendedCourse.Id, recommendations[0].CourseId);
         Assert.Contains(recommendations, item => item.CourseId == recommendedCourse.Id &&
             item.Reason == "Based on your enrolled course categories.");
+        Assert.Contains(recommendations, item => item.CourseId == otherCategoryCourse.Id && item.Reason == "Popular with learners.");
     }
 
     [Fact]

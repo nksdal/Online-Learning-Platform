@@ -16,6 +16,11 @@ public sealed class StudentProgressController(IProgressService progress) : Contr
     public async Task<IActionResult> GetCourseProgress(Guid courseId, CancellationToken ct) =>
         TryActor(out var actor) ? Ok(await progress.GetCourseProgressAsync(courseId, actor, ct)) : Unauthorized();
 
+    [HttpGet("/api/users/me/progress")]
+    [ProducesResponseType(typeof(IReadOnlyCollection<CourseProgressResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyProgress(CancellationToken ct) =>
+        TryActor(out var actor) ? Ok(await progress.GetMyProgressAsync(actor, ct)) : Unauthorized();
+
     [HttpPut("/api/lessons/{lessonId:guid}/progress")]
     [ProducesResponseType(typeof(LessonCompletionResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> CompleteLesson(Guid lessonId, CancellationToken ct) =>

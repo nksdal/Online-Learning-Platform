@@ -94,7 +94,7 @@ public sealed class DemoCatalogSeeder(
             {
                 if (assignmentTitles.Contains(assignment.Title, StringComparer.OrdinalIgnoreCase)) continue;
                 db.Assignments.Add(CourseAssignment.Create(
-                    course.Id, assignment.Title, assignment.Instructions, null, 2, 100m));
+                    course.Id, assignment.Title, assignment.Instructions, null, 2, 10.0m));
                 newAssignments++;
             }
 

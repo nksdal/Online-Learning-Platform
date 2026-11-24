@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using OnlineLearningPlatform.Application.Abstractions;
 using OnlineLearningPlatform.Application.Catalog;
 using OnlineLearningPlatform.Application.Common.Exceptions;
 using OnlineLearningPlatform.Domain.Auditing;
@@ -7,7 +9,11 @@ using OnlineLearningPlatform.Infrastructure.Persistence;
 
 namespace OnlineLearningPlatform.Infrastructure.Catalog;
 
-public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) : ICourseService
+public sealed class CourseService(
+    ApplicationDbContext db,
+    TimeProvider clock,
+    ICourseImageStorage imageStorage,
+    ILogger<CourseService> logger) : ICourseService
 {
     public async Task<IReadOnlyCollection<CourseResponse>> ListAllAsync(CancellationToken ct) =>
         (await db.Courses.AsNoTracking().OrderByDescending(course => course.UpdatedAtUtc).ToListAsync(ct))
@@ -47,7 +53,8 @@ public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) :
     {
         await EnsureActiveCategoryAsync(request.CategoryId, ct);
         var course = Course.Create(
-            instructorId, request.CategoryId, request.Title, request.Summary, request.Description, request.ImageUrl);
+            instructorId, request.CategoryId, request.Title, request.Summary, request.Description, request.ImageUrl,
+            request.Duration, request.Price, ParseDifficulty(request.Difficulty), request.Prerequisites);
         db.Courses.Add(course);
         AddAudit(instructorId, "CourseCreated", course);
         await db.SaveChangesAsync(ct);
@@ -58,9 +65,34 @@ public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) :
     {
         var course = await GetOwnedAsync(instructorId, courseId, ct);
         await EnsureActiveCategoryAsync(request.CategoryId, ct);
-        course.Update(request.CategoryId, request.Title, request.Summary, request.Description, request.ImageUrl);
+        var replacedImagePublicId = course.Update(request.CategoryId, request.Title, request.Summary, request.Description,
+            request.ImageUrl, request.Duration, request.Price, ParseDifficulty(request.Difficulty), request.Prerequisites);
         AddAudit(instructorId, "CourseUpdated", course);
         await db.SaveChangesAsync(ct);
+        await DeleteReplacedImageAsync(replacedImagePublicId, course.Id);
+        return ToResponse(course);
+    }
+
+    public async Task<CourseResponse> UpdateByAdminAsync(
+        Guid adminId,
+        Guid courseId,
+        AdminCourseUpdateRequest request,
+        StoredCourseImage? uploadedImage,
+        CancellationToken ct)
+    {
+        var course = await db.Courses.SingleOrDefaultAsync(item => item.Id == courseId, ct)
+            ?? throw new NotFoundException("Course was not found.");
+        if (!await db.Categories.AnyAsync(category => category.Id == request.CategoryId, ct))
+            throw new BusinessRuleException("A valid category is required for a course.");
+
+        course.UpdateByAdmin(request.CategoryId, request.Title, request.Summary, request.Description,
+            request.Duration, request.Price, ParseDifficulty(request.Difficulty), request.Prerequisites);
+        var replacedImagePublicId = uploadedImage is null
+            ? null
+            : course.SetCloudinaryImage(uploadedImage.SecureUrl, uploadedImage.PublicId);
+        AddAudit(adminId, "CourseUpdatedByAdmin", course);
+        await db.SaveChangesAsync(ct);
+        await DeleteReplacedImageAsync(replacedImagePublicId, course.Id);
         return ToResponse(course);
     }
 
@@ -107,6 +139,22 @@ public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) :
             throw new BusinessRuleException("An active category is required for a course.");
     }
 
+    private async Task DeleteReplacedImageAsync(string? publicId, Guid courseId)
+    {
+        if (string.IsNullOrWhiteSpace(publicId)) return;
+        try
+        {
+            // This cleanup happens after the SQL update commits. Request cancellation must not turn a
+            // successful save into an error that would cause the new upload to be removed.
+            await imageStorage.DeleteAsync(publicId, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "Could not remove replaced Cloudinary course image for course {CourseId}.", courseId);
+        }
+    }
+
     private void AddAudit(Guid actorId, string action, Course course) => db.AuditLogs.Add(AuditLog.Create(
         clock.GetUtcNow().UtcDateTime, action, nameof(Course), actorId, course.Id.ToString(),
         $"Course '{course.Title}' status: {course.Status}."));
@@ -114,5 +162,8 @@ public sealed class CourseService(ApplicationDbContext db, TimeProvider clock) :
     private static CourseResponse ToResponse(Course course) => new(
         course.Id, course.CategoryId, course.InstructorUserId, course.Title, course.Summary,
         course.Description, course.ImageUrl, course.Status.ToString(), course.RejectionReason,
-        course.CreatedAtUtc, course.UpdatedAtUtc);
+        course.CreatedAtUtc, course.UpdatedAtUtc, course.Duration, course.Price, course.Difficulty.ToString(), course.Prerequisites);
+
+    private static CourseDifficulty ParseDifficulty(string value) =>
+        Enum.Parse<CourseDifficulty>(value, ignoreCase: false);
 }

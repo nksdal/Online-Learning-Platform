@@ -45,12 +45,16 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddHttpClient<IProfileImageStorage, CloudinaryProfileImageStorage>();
+        services.AddHttpClient<ICourseImageStorage, CloudinaryCourseImageStorage>();
+        services.AddHttpClient<IMediaAssetStorage, CloudinaryMediaAssetStorage>(client =>
+            client.Timeout = TimeSpan.FromMinutes(10));
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ICourseService, CourseService>();
         services.AddScoped<ILessonService, LessonService>();
         services.AddScoped<IEnrollmentService, EnrollmentService>();
         services.AddScoped<IProgressService, ProgressService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
+        services.AddScoped<IAdminAnalyticsService, AdminAnalyticsService>();
         services.AddScoped<IDiscussionService, DiscussionService>();
         services.AddScoped<IStreakService, StreakService>();
         services.AddScoped<IRecommendationService, RecommendationService>();
@@ -67,28 +71,21 @@ public static class DependencyInjection
                 "Assignment deadline reminder window must be between 1 and 168 hours.")
             .ValidateOnStart();
 
+        services.AddOptions<EmailOptions>()
+            .BindConfiguration(EmailOptions.SectionName)
+            .Validate(options => System.Net.Mail.MailAddress.TryCreate(options.From, out _), "Email sender address is invalid.")
+            .Validate(options => Uri.TryCreate(options.AppUrl, UriKind.Absolute, out var uri) &&
+                                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+                                 string.IsNullOrEmpty(uri.UserInfo),
+                "Email app URL must be an absolute HTTP or HTTPS URL without user information.")
+            .ValidateOnStart();
         services.AddOptions<SmtpOptions>()
             .BindConfiguration(SmtpOptions.SectionName)
             .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "Email SMTP host is required.")
-            .Validate(options => options.Port is > 0 and <= 65535, "Email SMTP port is invalid.")
-            .Validate(options => string.IsNullOrWhiteSpace(options.UserName) || !string.IsNullOrWhiteSpace(options.Password),
-                "Email SMTP password is required when a username is configured.")
-            .ValidateOnStart();
-        services.AddOptions<EmailOptions>()
-            .BindConfiguration(EmailOptions.SectionName)
-            .Validate(options => System.Net.Mail.MailAddress.TryCreate(options.FromAddress, out _), "Email sender address is invalid.")
-            .Validate(options => Uri.TryCreate(options.VerificationPageUrl, UriKind.Absolute, out var uri) &&
-                                 (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
-                                 string.IsNullOrEmpty(uri.UserInfo),
-                "Email verification page URL must be an absolute HTTP or HTTPS URL without user information.")
-            .Validate(options => Uri.TryCreate(options.PasswordResetPageUrl, UriKind.Absolute, out var resetUri) &&
-                                 (resetUri.Scheme == Uri.UriSchemeHttp || resetUri.Scheme == Uri.UriSchemeHttps) &&
-                                 string.IsNullOrEmpty(resetUri.UserInfo),
-                "Email password reset page URL must be an absolute HTTP or HTTPS URL without user information.")
-            .ValidateOnStart();
+            .Validate(options => options.Port is > 0 and <= 65535, "Email SMTP port is invalid.");
         services.AddOptions<CloudinaryOptions>()
             .BindConfiguration(CloudinaryOptions.SectionName);
-        services.TryAddTransient<IEmailSender, MailKitEmailSender>();
+        services.TryAddTransient<IEmailSender, GmailSmtpEmailSender>();
         services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(3));
 
         // AddIdentityCore (not AddIdentity): we want the user/role/token machinery but NOT Identity's

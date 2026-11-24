@@ -17,6 +17,7 @@ public sealed class TeacherAssignmentsController(IAssignmentService assignments)
         TryActor(out var teacher) ? Ok(await assignments.ListForTeacherAsync(courseId, teacher, ct)) : Unauthorized();
 
     [HttpPost("courses/{courseId:guid}/assignments")]
+    [HttpPost("/api/courses/{courseId:guid}/assignments")]
     [ProducesResponseType(typeof(AssignmentResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create(Guid courseId, AssignmentWriteRequest request, CancellationToken ct)
     {
@@ -29,9 +30,23 @@ public sealed class TeacherAssignmentsController(IAssignmentService assignments)
     public async Task<IActionResult> Update(Guid assignmentId, AssignmentWriteRequest request, CancellationToken ct) =>
         TryActor(out var teacher) ? Ok(await assignments.UpdateAsync(assignmentId, teacher, request, ct)) : Unauthorized();
 
+    [HttpPut("/api/courses/{courseId:guid}/assignments/{assignmentId:guid}")]
+    public async Task<IActionResult> UpdateInCourse(
+        Guid courseId, Guid assignmentId, AssignmentWriteRequest request, CancellationToken ct)
+    {
+        if (!TryActor(out var teacher)) return Unauthorized();
+        var courseAssignments = await assignments.ListForTeacherAsync(courseId, teacher, ct);
+        if (!courseAssignments.Any(item => item.Id == assignmentId)) return NotFound();
+        return Ok(await assignments.UpdateAsync(assignmentId, teacher, request, ct));
+    }
+
     [HttpGet("assignments/{assignmentId:guid}/submissions")]
     public async Task<IActionResult> ListSubmissions(Guid assignmentId, CancellationToken ct) =>
         TryActor(out var teacher) ? Ok(await assignments.ListSubmissionsForTeacherAsync(assignmentId, teacher, ct)) : Unauthorized();
+
+    [HttpGet("courses/{courseId:guid}/submissions")]
+    public async Task<IActionResult> ListSubmissionsForCourse(Guid courseId, CancellationToken ct) =>
+        TryActor(out var teacher) ? Ok(await assignments.ListSubmissionsForTeacherCourseAsync(courseId, teacher, ct)) : Unauthorized();
 
     private bool TryActor(out Guid actor) => Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out actor);
 }

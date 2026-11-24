@@ -24,6 +24,15 @@ public class SwaggerExposureTests
 
         Assert.Equal("http", scheme.GetProperty("type").GetString());
         Assert.Equal("bearer", scheme.GetProperty("scheme").GetString());
+
+        var uploadOperation = document.RootElement
+            .GetProperty("paths")
+            .GetProperty("/api/users/me/profile-picture")
+            .GetProperty("put");
+        Assert.True(uploadOperation
+            .GetProperty("requestBody")
+            .GetProperty("content")
+            .TryGetProperty("multipart/form-data", out _));
     }
 
     [Theory]
@@ -32,7 +41,10 @@ public class SwaggerExposureTests
     public async Task Production_does_not_expose_swagger(string path)
     {
         using var factory = new ProductionApiFactory();
-        using var client = factory.CreateClient();
+        using var client = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://api.nikladori.ge"),
+        });
 
         using var response = await client.GetAsync(path);
 

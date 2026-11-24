@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
-import { AdminUserPage, Assignment, AssignmentSubmission, Category, Course, CourseProgress, DiscussionPost, Enrollment, LearningStreak, Lesson, MessageResponse, RecommendedCourse, TeacherAssignmentSubmission, TokenResponse, UserProfile } from './models';
+import { AdminAnalytics, AdminUserPage, Assignment, AssignmentSubmission, Category, Course, CourseProgress, DiscussionPost, DiscussionPostsPage, Enrollment, LearningStreak, Lesson, MessageResponse, RecommendedCourse, TeacherAssignmentSubmission, TokenResponse, UserProfile } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -16,14 +16,27 @@ export class ApiService {
   course(id: string) { return this.http.get<Course>(`${this.root}/api/courses/${id}`); }
   enroll(courseId: string) { return this.http.post<Enrollment>(`${this.root}/api/courses/${courseId}/enrollments`, {}); }
   myEnrollments() { return this.http.get<Enrollment[]>(`${this.root}/api/users/me/enrollments`); }
+  myProgress() { return this.http.get<CourseProgress[]>(`${this.root}/api/users/me/progress`); }
   myStreak() { return this.http.get<LearningStreak>(`${this.root}/api/users/me/streak`); }
   recommendations() { return this.http.get<RecommendedCourse[]>(`${this.root}/api/users/me/recommendations`); }
   lessons(courseId: string) { return this.http.get<Lesson[]>(`${this.root}/api/courses/${courseId}/lessons`); }
   courseProgress(courseId: string) { return this.http.get<CourseProgress>(`${this.root}/api/courses/${courseId}/progress/me`); }
+  myCourseSubmissions(courseId: string) { return this.http.get<Record<string, AssignmentSubmission[]>>(`${this.root}/api/courses/${courseId}/submissions/me`); }
   assignments(courseId: string) { return this.http.get<Assignment[]>(`${this.root}/api/courses/${courseId}/assignments`); }
   mySubmissions(assignmentId: string) { return this.http.get<AssignmentSubmission[]>(`${this.root}/api/assignments/${assignmentId}/submissions/me`); }
   submitAssignment(assignmentId: string, text: string) { return this.http.post<AssignmentSubmission>(`${this.root}/api/assignments/${assignmentId}/submissions`, { text }); }
-  discussions(courseId: string) { return this.http.get<DiscussionPost[]>(`${this.root}/api/courses/${courseId}/discussions`); }
+  submitAssignmentWithAttachment(assignmentId: string, text: string, file: File) {
+    const body = new FormData();
+    body.append('text', text);
+    body.append('file', file, file.name);
+    return this.http.post<AssignmentSubmission>(`${this.root}/api/assignments/${assignmentId}/submissions/with-attachment`, body);
+  }
+  downloadSubmissionAttachment(submissionId: string) {
+    return this.http.get(`${this.root}/api/submissions/${submissionId}/attachment`, { responseType: 'blob' });
+  }
+  discussions(courseId: string, page = 1, pageSize = 50) {
+    return this.http.get<DiscussionPostsPage>(`${this.root}/api/courses/${courseId}/discussions`, { params: { page, pageSize } });
+  }
   createDiscussionPost(courseId: string, body: string) { return this.http.post<DiscussionPost>(`${this.root}/api/courses/${courseId}/discussions`, { body }); }
   replyToDiscussion(postId: string, body: string) { return this.http.post<DiscussionPost>(`${this.root}/api/discussions/${postId}/replies`, { body }); }
   completeLesson(lessonId: string) { return this.http.put<void>(`${this.root}/api/lessons/${lessonId}/progress`, {}); }
@@ -52,12 +65,16 @@ export class ApiService {
     if (search.trim()) params = params.set('search', search.trim());
     return this.http.get<AdminUserPage>(`${this.root}/api/admin/users`, { params });
   }
+  adminAnalytics(days = 30) {
+    return this.http.get<AdminAnalytics>(`${this.root}/api/admin/analytics`, { params: { days } });
+  }
   adminChangeUserRole(id: string, role: string) {
     return this.http.put<void>(`${this.root}/api/admin/users/${id}/role`, { role });
   }
   adminSetUserStatus(id: string, isActive: boolean) {
     return this.http.put<void>(`${this.root}/api/admin/users/${id}/status`, { isActive });
   }
+  adminRemoveUser(id: string) { return this.http.delete<void>(`${this.root}/api/admin/users/${id}`); }
   adminCategories() { return this.http.get<Category[]>(`${this.root}/api/admin/categories`); }
   adminCreateCategory(name: string, description: string) {
     return this.http.post<Category>(`${this.root}/api/admin/categories`, { name, description });
@@ -70,20 +87,39 @@ export class ApiService {
   }
   adminCourses() { return this.http.get<Course[]>(`${this.root}/api/admin/courses`); }
   adminPendingCourses() { return this.http.get<Course[]>(`${this.root}/api/admin/courses/pending`); }
+  adminUpdateCourse(
+    id: string,
+    data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description' | 'duration' | 'price' | 'difficulty' | 'prerequisites'>,
+    image: File | null,
+  ) {
+    const form = new FormData();
+    form.append('categoryId', data.categoryId);
+    form.append('title', data.title);
+    form.append('summary', data.summary);
+    form.append('description', data.description);
+    form.append('duration', data.duration);
+    form.append('price', String(data.price));
+    form.append('difficulty', data.difficulty);
+    if (data.prerequisites) form.append('prerequisites', data.prerequisites);
+    if (image) form.append('image', image, image.name);
+    return this.http.put<Course>(`${this.root}/api/admin/courses/${id}`, form);
+  }
   adminApproveCourse(id: string) { return this.http.post<Course>(`${this.root}/api/admin/courses/${id}/approve`, {}); }
   adminRejectCourse(id: string, reason: string) {
     return this.http.post<Course>(`${this.root}/api/admin/courses/${id}/reject`, { reason });
   }
-  adminCourseDiscussions(id: string) { return this.http.get<DiscussionPost[]>(`${this.root}/api/admin/courses/${id}/discussions`); }
+  adminCourseDiscussions(id: string, page = 1, pageSize = 50) {
+    return this.http.get<DiscussionPostsPage>(`${this.root}/api/admin/courses/${id}/discussions`, { params: { page, pageSize } });
+  }
   adminModerateDiscussion(id: string, isHidden: boolean, reason: string) {
     return this.http.put<DiscussionPost>(`${this.root}/api/admin/discussions/${id}/moderation`, { isHidden, reason: reason || null });
   }
 
   teacherCourses() { return this.http.get<Course[]>(`${this.root}/api/teacher/courses`); }
-  createTeacherCourse(data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description' | 'imageUrl'>) {
+  createTeacherCourse(data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description' | 'imageUrl' | 'duration' | 'price' | 'difficulty' | 'prerequisites'>) {
     return this.http.post<Course>(`${this.root}/api/teacher/courses`, data);
   }
-  updateTeacherCourse(id: string, data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description' | 'imageUrl'>) {
+  updateTeacherCourse(id: string, data: Pick<Course, 'categoryId' | 'title' | 'summary' | 'description' | 'imageUrl' | 'duration' | 'price' | 'difficulty' | 'prerequisites'>) {
     return this.http.put<Course>(`${this.root}/api/teacher/courses/${id}`, data);
   }
   submitTeacherCourse(id: string) { return this.http.post<Course>(`${this.root}/api/teacher/courses/${id}/submit`, {}); }
@@ -95,6 +131,12 @@ export class ApiService {
   updateTeacherLesson(id: string, data: Pick<Lesson, 'title' | 'content' | 'position'>) {
     return this.http.put<Lesson>(`${this.root}/api/teacher/lessons/${id}`, data);
   }
+  uploadTeacherLessonVideo(id: string, file: File) {
+    const body = new FormData();
+    body.append('file', file, file.name);
+    return this.http.put<Lesson>(`${this.root}/api/teacher/lessons/${id}/video`, body);
+  }
+  removeTeacherLessonVideo(id: string) { return this.http.delete<void>(`${this.root}/api/teacher/lessons/${id}/video`); }
   deleteTeacherLesson(id: string) { return this.http.delete<void>(`${this.root}/api/teacher/lessons/${id}`); }
   teacherAssignments(courseId: string) { return this.http.get<Assignment[]>(`${this.root}/api/teacher/courses/${courseId}/assignments`); }
   createTeacherAssignment(courseId: string, data: Pick<Assignment, 'title' | 'instructions' | 'dueAtUtc' | 'maxAttempts' | 'maxScore'>) {
@@ -109,7 +151,12 @@ export class ApiService {
   gradeTeacherSubmission(id: string, score: number, feedback: string) {
     return this.http.put<TeacherAssignmentSubmission>(`${this.root}/api/submissions/${id}/grade`, { score, feedback });
   }
-  teacherDiscussions(courseId: string) { return this.http.get<DiscussionPost[]>(`${this.root}/api/teacher/courses/${courseId}/discussions`); }
+  teacherDiscussions(courseId: string, page = 1, pageSize = 50) {
+    return this.http.get<DiscussionPostsPage>(`${this.root}/api/teacher/courses/${courseId}/discussions`, { params: { page, pageSize } });
+  }
+  teacherCourseSubmissions(courseId: string) {
+    return this.http.get<TeacherAssignmentSubmission[]>(`${this.root}/api/teacher/courses/${courseId}/submissions`);
+  }
   moderateTeacherDiscussion(id: string, isHidden: boolean, reason: string) {
     return this.http.put<DiscussionPost>(`${this.root}/api/teacher/discussions/${id}/moderation`, { isHidden, reason: reason || null });
   }

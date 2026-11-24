@@ -13,8 +13,9 @@ namespace OnlineLearningPlatform.Api.Controllers;
 public sealed class TeacherDiscussionsController(IDiscussionService discussions) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> List(Guid courseId, CancellationToken ct) =>
-        TryActor(out var teacher) ? Ok(await discussions.ListForTeacherAsync(courseId, teacher, ct)) : Unauthorized();
+    public async Task<IActionResult> List(Guid courseId, [FromQuery] int page = 1, [FromQuery] int pageSize = 50,
+        CancellationToken ct = default) =>
+        TryActor(out var teacher) ? Ok(await discussions.ListForTeacherAsync(courseId, teacher, page, pageSize, ct)) : Unauthorized();
 
     private bool TryActor(out Guid actor) => Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out actor);
 }

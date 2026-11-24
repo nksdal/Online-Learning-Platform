@@ -19,6 +19,7 @@ public sealed class TeacherCoursesController(ICourseService courses) : Controlle
     }
 
     [HttpPost]
+    [HttpPost("/api/courses")]
     [ProducesResponseType(typeof(CourseResponse), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create(CourseWriteRequest request, CancellationToken ct)
     {
@@ -28,6 +29,7 @@ public sealed class TeacherCoursesController(ICourseService courses) : Controlle
     }
 
     [HttpPut("{id:guid}")]
+    [HttpPut("/api/courses/{id:guid}")]
     public async Task<IActionResult> Update(Guid id, CourseWriteRequest request, CancellationToken ct) =>
         TryActor(out var actor) ? Ok(await courses.UpdateAsync(actor, id, request, ct)) : Unauthorized();
 
@@ -38,6 +40,16 @@ public sealed class TeacherCoursesController(ICourseService courses) : Controlle
     [HttpPost("{id:guid}/archive")]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct) =>
         TryActor(out var actor) ? Ok(await courses.ArchiveAsync(actor, id, ct)) : Unauthorized();
+
+    /// <summary>Contract-compatible DELETE that archives the published course and retains learner history.</summary>
+    [HttpDelete("/api/courses/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        if (!TryActor(out var actor)) return Unauthorized();
+        await courses.ArchiveAsync(actor, id, ct);
+        return NoContent();
+    }
 
     private bool TryActor(out Guid actor) => Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Sub), out actor);
 }

@@ -52,6 +52,8 @@ This document distinguishes endpoints that are implemented now from routes plann
 | `GET` | `/api/teacher/courses/{courseId}/lessons` | Owning Teacher bearer JWT | Lists lessons for the teacher's course. |
 | `POST` | `/api/teacher/courses/{courseId}/lessons` | Owning Teacher bearer JWT | Adds an ordered lesson to a course that is not pending review or archived. |
 | `PUT` | `/api/teacher/lessons/{lessonId}` | Owning Teacher bearer JWT | Updates lesson title, content, or position. |
+| `PUT` | `/api/teacher/lessons/{lessonId}/video` | Owning Teacher bearer JWT | Uploads or replaces an MP4/WebM lesson video (up to 100 MB) to Cloudinary. |
+| `DELETE` | `/api/teacher/lessons/{lessonId}/video` | Owning Teacher bearer JWT | Removes a lesson video and deletes its Cloudinary asset. |
 | `DELETE` | `/api/teacher/lessons/{lessonId}` | Owning Teacher bearer JWT | Deletes a lesson from an editable course. |
 | `GET` | `/api/admin/courses/{courseId}/lessons` | Admin bearer JWT | Lists lessons for any course, including archived courses. |
 | `GET` | `/api/courses/{courseId}/progress/me` | Enrolled Student bearer JWT | Returns lesson completion states and overall course completion percentage. Archived courses return the saved progress read-only. |
@@ -59,14 +61,17 @@ This document distinguishes endpoints that are implemented now from routes plann
 | `DELETE` | `/api/lessons/{lessonId}/progress` | Enrolled Student bearer JWT | Resets a lesson to incomplete. Returns 204 when successful or already incomplete. Progress cannot change after archive. |
 | `GET` | `/api/courses/{courseId}/assignments` | Enrolled Student bearer JWT | Lists assignments for a Published or Archived course. |
 | `GET` | `/api/teacher/courses/{courseId}/assignments` | Owning Teacher bearer JWT | Lists assignments for the teacher's course. |
-| `POST` | `/api/teacher/courses/{courseId}/assignments` | Owning Teacher bearer JWT | Creates a text assignment with optional UTC deadline, maximum attempts (default 1), and maximum score (default 100). |
-| `PUT` | `/api/teacher/assignments/{assignmentId}` | Owning Teacher bearer JWT | Updates assignment instructions, deadline, attempt limit, and max score. |
+| `POST` | `/api/teacher/courses/{courseId}/assignments` | Owning Teacher bearer JWT | Creates a text assignment with optional UTC deadline, maximum attempts (default 1), and maximum score (default 10.0). Maximum score is capped at 10.0. |
+| `PUT` | `/api/teacher/assignments/{assignmentId}` | Owning Teacher bearer JWT | Updates assignment instructions, deadline, attempt limit, and a maximum score up to 10.0. |
 | `POST` | `/api/assignments/{assignmentId}/submissions` | Enrolled Student bearer JWT | Adds a text submission attempt while the course is Published and before the deadline. Returns 409 when all allowed attempts are used. |
+| `POST` | `/api/assignments/{assignmentId}/submissions/with-attachment` | Enrolled Student bearer JWT | Multipart submit with optional response text and one private Cloudinary attachment (PDF, DOCX, XLSX, PPTX, TXT, CSV, PNG, JPG, or WebP; up to 10 MB). |
+| `GET` | `/api/submissions/{submissionId}/attachment` | Owning Student, course Teacher, or Admin bearer JWT | Streams the private attachment through an authorized API route using an expiring Cloudinary download URL. |
 | `GET` | `/api/assignments/{assignmentId}/submissions/me` | Enrolled Student bearer JWT | Lists the current student's attempt history and any grades/feedback. |
 | `GET` | `/api/teacher/assignments/{assignmentId}/submissions` | Owning Teacher bearer JWT | Lists every student's attempt history for that assignment. |
 | `PUT` | `/api/submissions/{submissionId}/grade` | Owning Teacher bearer JWT | Grades a submission with a score from zero through the assignment's maximum and optional feedback. |
 | `GET` | `/api/admin/courses/{courseId}/assignments` | Admin bearer JWT | Lists assignments for any course. |
 | `GET` | `/api/admin/assignments/{assignmentId}/submissions` | Admin bearer JWT | Reads all submissions for an assignment. |
+| `GET` | `/api/admin/analytics?days=30` | Admin bearer JWT | Returns platform metrics, a 12-month activity trend, and course engagement. Supports reporting windows of 7, 30, 90, or 365 days. |
 | `GET` | `/api/courses/{courseId}/discussions` | Enrolled Student bearer JWT | Lists visible discussion posts and replies for a Published or Archived course. |
 | `POST` | `/api/courses/{courseId}/discussions` | Enrolled Student bearer JWT | Creates a discussion post in a Published course. |
 | `POST` | `/api/discussions/{postId}/replies` | Enrolled Student bearer JWT | Replies to a visible post in a Published course. |
@@ -76,6 +81,29 @@ This document distinguishes endpoints that are implemented now from routes plann
 | `PUT` | `/api/admin/discussions/{postId}/moderation` | Admin bearer JWT | Hides or restores any post; hiding requires a reason. |
 | `GET` | `/api/users/me/streak` | Student bearer JWT | Returns current and longest learning streaks using the student's time zone and lesson completions. |
 | `GET` | `/api/users/me/recommendations?limit=10` | Student bearer JWT | Recommends published courses, preferring the student's enrolled categories, then overall enrollment popularity; limit is clamped to 1–20. |
+
+## Compatibility routes from the project brief
+
+These routes keep the original brief's resource-shaped paths available while preserving the explicit role routes above. They delegate to the same application services and authorization rules.
+
+| Method | Path | Access | Behavior |
+|---|---|---|---|
+| `POST` | `/api/courses` | Teacher bearer JWT | Creates a draft course. |
+| `PUT` | `/api/courses/{id}` | Owning Teacher bearer JWT | Updates an editable course. |
+| `DELETE` | `/api/courses/{id}` | Owning Teacher bearer JWT | Archives a published course and keeps enrolled learners' read access; it does not erase learning history. |
+| `POST` | `/api/courses/{courseId}/lessons` | Owning Teacher bearer JWT | Adds a lesson. |
+| `PUT` | `/api/courses/{courseId}/lessons/{id}` | Owning Teacher bearer JWT | Updates a lesson only when it belongs to the course in the route. |
+| `DELETE` | `/api/courses/{courseId}/lessons/{id}` | Owning Teacher bearer JWT | Deletes a lesson only when it belongs to the course in the route. |
+| `POST` | `/api/courses/{courseId}/assignments` | Owning Teacher bearer JWT | Creates an assignment. |
+| `PUT` | `/api/courses/{courseId}/assignments/{id}` | Owning Teacher bearer JWT | Updates an assignment only when it belongs to the course in the route. |
+| `POST` | `/api/assignments/{id}/submit` | Enrolled Student bearer JWT | Creates a text submission attempt. |
+| `PUT` | `/api/assignments/{id}/grade` | Owning Teacher bearer JWT | Grades a submission; the path's `id` is the submission ID, matching the app's per-attempt grading model. |
+| `GET` | `/api/users` | Admin bearer JWT | Lists users with the existing pagination and search options. |
+| `GET` | `/api/users/{id}` | Admin bearer JWT | Reads a user's profile. |
+| `PUT` | `/api/users/{id}` | Admin bearer JWT | Updates the user's first name, last name, and time zone. |
+| `DELETE` | `/api/users/{id}` | Admin bearer JWT | Anonymizes the account and retains linked courses and learning history. |
+
+`GET /api/courses` and `GET /api/courses/{id}` were already implemented as public catalogue routes. Student lesson and assignment reads already use the nested course paths from the brief. The added aliases do not grant users permissions they do not already have through the role-specific routes.
 
 Unknown paths return `404` using `application/problem+json`. The health routes are anonymous so Docker or an orchestrator can probe the service without credentials.
 
@@ -87,6 +115,6 @@ These are project requirements, not implemented endpoints yet. Their detailed co
 |---|---|
 | Lessons and materials | `/api/lessons/{lessonId}/materials`, `/api/materials/{materialId}` |
 | Enrollment and progress | Streak history and daily learning summaries (future extension) |
-| Reviews and administration | `/api/courses/{courseId}/reviews`, `/api/admin/dashboard/statistics` |
+| Reviews and administration | `/api/courses/{courseId}/reviews` |
 
 Before implementing a planned route, define its request/response DTOs, validation, authorization rules, status codes, and error responses. Update this inventory when the route becomes available.
