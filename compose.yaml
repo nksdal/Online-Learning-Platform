@@ -1,0 +1,123 @@
+name: online-learning-platform
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${SQLSERVER_HOST_PORT:-14330}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD
+        - /opt/mssql-tools18/bin/sqlcmd
+        - -S
+        - localhost
+        - -U
+        - sa
+        - -P
+        - ${MSSQL_SA_PASSWORD}
+        - -C
+        - -Q
+        - SELECT 1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: build
+    command:
+      - dotnet
+      - tool
+      - run
+      - dotnet-ef
+      - --
+      - database
+      - update
+      - --project
+      - src/OnlineLearningPlatform.Infrastructure/OnlineLearningPlatform.Infrastructure.csproj
+      - --startup-project
+      - src/OnlineLearningPlatform.Api/OnlineLearningPlatform.Api.csproj
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=OnlineLearningPlatform;User ID=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True
+      Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+    depends_on:
+      db-provision:
+        condition: service_completed_successfully
+    restart: "no"
+
+  db-provision:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver,1433 -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b
+        -v AppPassword="$${DB_APP_PASSWORD}" -i /scripts/provision-app-user.sql
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env}
+    volumes:
+      - ./deploy/provision-app-user.sql:/scripts/provision-app-user.sql:ro
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      Swagger__Enabled: "true"
+      ConnectionStrings__DefaultConnection: Server=sqlserver,1433;Database=OnlineLearningPlatform;User ID=OnlineLearningPlatformApp;Password=${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True
+      Authentication__Jwt__Issuer: OnlineLearningPlatform
+      Authentication__Jwt__Audience: OnlineLearningPlatform.AngularClient
+      Authentication__Jwt__AccessTokenMinutes: 15
+      Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+      BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      DemoCatalog__Enabled: ${DEMO_CATALOG_ENABLED:-true}
+      Email__Smtp__Host: ${EMAIL_HOST:-smtp.gmail.com}
+      Email__Smtp__Port: ${EMAIL_PORT:-465}
+      Email__Smtp__Secure: "true"
+      Email__Smtp__UserName: ${EMAIL_USER:?Set EMAIL_USER in .env}
+      Email__Smtp__Password: ${EMAIL_PASS:?Set EMAIL_PASS to a Gmail App Password in .env}
+      Email__From: ${EMAIL_FROM:?Set EMAIL_FROM to your Gmail address in .env}
+      Email__AppUrl: ${APP_URL:-http://localhost:4200}
+      Cors__AllowedOrigins__0: http://localhost:4200
+      Cors__AllowedOrigins__1: http://${FRONTEND_HOST:-localhost}:4200
+      AllowedHosts: ${ALLOWED_HOSTS:-localhost;127.0.0.1;[::1];${FRONTEND_HOST:-localhost}}
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+    ports:
+      - "${API_BIND_ADDRESS:-127.0.0.1}:${API_HOST_PORT:-5220}:8080"
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  sqlserver-data:
+  dataprotection-keys:

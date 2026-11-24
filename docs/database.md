@@ -1,0 +1,203 @@
+# Database design
+
+Status: **foundation, catalog, learning, assignments, discussions, reminders, and course-details schema** (including the additive `AddCourseDetails` and `AddCourseDetailConstraints` migrations).
+
+## ER diagram (current schema)
+
+```mermaid
+erDiagram
+    AspNetUsers ||--o{ AspNetUserRoles : "has"
+    AspNetRoles ||--o{ AspNetUserRoles : "assigned via"
+    AspNetUsers ||--o{ RefreshTokens : "owns sessions"
+    AspNetUsers ||..o{ AuditLogs : "acts (no FK)"
+    Categories {
+        guid Id PK
+        string Name "unique"
+        string Description "nullable"
+        bool IsActive
+        datetime2 CreatedAtUtc
+        datetime2 UpdatedAtUtc
+    }
+    Categories ||--o{ Courses : "classifies"
+    AspNetUsers ||--o{ Courses : "teaches"
+    Courses ||--o{ Lessons : "contains"
+    Lessons ||--o{ LessonProgress : "completion records"
+    Courses ||--o{ Enrollments : "has students"
+    AspNetUsers ||--o{ Enrollments : "enrolls"
+    AspNetUsers ||--o{ LessonProgress : "completes"
+    Courses ||--o{ Assignments : "sets"
+    Assignments ||--o{ AssignmentSubmissions : "receives attempts"
+    AspNetUsers ||--o{ AssignmentSubmissions : "submits"
+    Courses ||--o{ CourseDiscussionPosts : "discussed in"
+    CourseDiscussionPosts ||--o{ CourseDiscussionPosts : "replies"
+    Assignments ||--o{ AssignmentDeadlineReminders : "sends reminders"
+    AspNetUsers ||--o{ AssignmentDeadlineReminders : "receives reminders"
+    Courses {
+        guid Id PK
+        guid CategoryId FK
+        guid InstructorUserId FK
+        string Title
+        string Summary
+        string Description
+        string Duration
+        decimal Price "GEL; zero is free"
+        string Difficulty "Beginner, Intermediate, Advanced"
+        string Prerequisites "nullable"
+        string Status "Draft, PendingApproval, Published, Rejected, Archived"
+        string RejectionReason "nullable"
+        datetime2 CreatedAtUtc
+        datetime2 UpdatedAtUtc
+    }
+    Lessons {
+        guid Id PK
+        guid CourseId FK
+        string Title
+        string Content
+        int Position
+        datetime2 CreatedAtUtc
+        datetime2 UpdatedAtUtc
+    }
+    Enrollments {
+        guid Id PK
+        guid CourseId FK
+        guid StudentUserId FK
+        datetime2 EnrolledAtUtc
+    }
+    LessonProgress {
+        guid Id PK
+        guid LessonId FK
+        guid StudentUserId FK
+        datetime2 CompletedAtUtc
+    }
+    Assignments {
+        guid Id PK
+        guid CourseId FK
+        string Title
+        string Instructions
+        datetime2 DueAtUtc "nullable UTC"
+        int MaxAttempts "default 1"
+        decimal MaxScore
+    }
+    AssignmentSubmissions {
+        guid Id PK
+        guid AssignmentId FK
+        guid StudentUserId FK
+        int AttemptNumber
+        string Text
+        datetime2 SubmittedAtUtc
+        decimal Score "nullable"
+        string Feedback "nullable"
+        datetime2 GradedAtUtc "nullable"
+        guid GradedByUserId "nullable FK"
+    }
+    CourseDiscussionPosts {
+        guid Id PK
+        guid CourseId FK
+        guid AuthorUserId FK
+        guid ParentPostId "nullable self FK"
+        string Body
+        bool IsHidden
+        string ModerationReason "nullable"
+        guid ModeratedByUserId "nullable FK"
+    }
+    AssignmentDeadlineReminders {
+        guid Id PK
+        guid AssignmentId FK
+        guid StudentUserId FK
+        datetime2 SentAtUtc "nullable"
+        int AttemptCount
+        string LastError "nullable"
+    }
+
+    AspNetUsers {
+        guid Id PK
+        string Email "unique (NormalizedEmail)"
+        string FirstName
+        string LastName
+        string TimeZoneId
+        bool IsActive
+        bool MustChangePassword
+        datetime2 CreatedAtUtc
+        datetime2 UpdatedAtUtc
+    }
+    AspNetRoles {
+        guid Id PK
+        string Name "Student, Teacher, Admin"
+    }
+    RefreshTokens {
+        guid Id PK
+        guid UserId FK
+        guid FamilyId
+        string TokenHash "unique, SHA-256 hash only"
+        datetime2 ExpiresAtUtc
+        datetime2 RevokedAtUtc
+        guid ReplacedByTokenId "no FK"
+    }
+    AuditLogs {
+        bigint Id PK
+        datetime2 OccurredAtUtc
+        guid ActorUserId "no FK"
+        string Action
+        string EntityType
+        string EntityId
+    }
+```
+
+Identity's other tables (`AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`, `AspNetRoleClaims`) exist but are not used by the platform yet and are omitted from the diagram.
+
+`Categories.Name` has a unique index, and `IsActive` is indexed for the public active-category query. Categories are deactivated rather than deleted so existing course references can remain valid when courses are added.
+
+`Courses` references its category and instructor with restrictive deletes. Status and instructor have indexes, along with a combined status/category index for the public catalogue. Course status is stored as a string to keep database rows readable and resilient to enum ordering changes.
+
+`Lessons` belong to a course and are ordered by `Position`. `Enrollments` have a unique `(StudentUserId, CourseId)` index so a student can enroll in a course only once. Enrollments cascade with course deletion; user deletion is restricted to preserve enrollment history. Archived courses remain linked to their lessons and enrollments, allowing previously enrolled students to retain read access.
+
+`LessonProgress` stores one row per `(StudentUserId, LessonId)`. A row means the lesson is complete; deleting it resets that lesson. Its unique index makes completion idempotent at the data level. Course progress is calculated from the lessons and completion rows, so adding a lesson updates the denominator without rewriting stored progress. Archived course progress is readable but cannot be changed.
+
+Assignments belong to courses and may have an optional UTC deadline, a maximum attempt count (default 1), and a maximum score capped at 10.0 (default 10.0). Each submission attempt is a separate row; `(AssignmentId, StudentUserId, AttemptNumber)` is unique so history is retained. Scores are stored with two decimal places, cannot exceed the assignment's maximum, and cannot exceed 10.0.
+
+Discussion posts are retained when moderated; hiding records the moderator and reason, while student lists omit hidden posts. Deadline reminders have a unique assignment/student pair, are retried up to five delivery attempts, and are marked sent only after the email sender succeeds. Streaks and recommendations are derived from existing completion and enrollment records, so they need no extra tables.
+
+## Conventions
+
+| Topic | Rule |
+|---|---|
+| **Keys** | `Guid` keys generated by EF Core (SQL Server-friendly sequential GUIDs). `AuditLogs` uses a `bigint IDENTITY` key. |
+| **Time** | Every timestamp is UTC in a `datetime2` column. Domain methods reject non-UTC `DateTime` values. A value converter labels values as UTC when read back. The clock is `TimeProvider`, never `DateTime.UtcNow`. |
+| **CreatedAtUtc / UpdatedAtUtc** | Entities implementing `IAuditableEntity` are stamped by `ApplicationDbContext.SaveChanges*`. Application code never sets them. |
+| **Strings** | Every string column has an explicit maximum length, shared as a constant between the domain and the EF mapping. |
+| **Concurrency** | Identity entities carry a `ConcurrencyStamp`. Platform entities that can be edited concurrently get a `rowversion` token when they are introduced. |
+| **Reference data** | The three roles are seeded inside the migration with fixed ids. No user or password is ever seeded by a migration. |
+| **Migrations** | Created in the Infrastructure project, stored in `Persistence/Migrations`, never applied automatically in production. |
+
+## Design decisions worth defending
+
+- **Refresh tokens are stored as hashes.** A database leak must not yield usable sessions. The unique index on `TokenHash` also serves the lookup on every refresh.
+- **`FamilyId` models a login session.** All tokens produced by rotating one login share it, so reuse of an old token can revoke the whole session in one statement.
+- **`ReplacedByTokenId` is not a foreign key.** A self-referencing cascade chain through the user would create multiple cascade paths, which SQL Server rejects. The column is informational (audit trail); integrity is enforced by the application.
+- **`AuditLogs.ActorUserId` is not a foreign key.** Audit records must outlive the user they describe and must not block deleting that user.
+- **Unique index on `NormalizedEmail`.** Identity only checks duplicates in code; the database constraint closes the race between two simultaneous registrations.
+- **No DB default for booleans.** An EF Core default of `true` on a `bool` conflicts with the CLR default `false` and can silently overwrite an explicit `false`. Defaults live in the C# property initialisers.
+- **Role is not a column on the user.** Roles live in Identity's role tables. "Exactly one role per user" is enforced by the role-management service.
+
+## Migration commands
+
+Run from the repository root. The Infrastructure project holds the migrations; the Api project is the startup project that supplies configuration.
+
+```powershell
+# Create a migration (does not touch the database)
+dotnet ef migrations add <Name> --project src/OnlineLearningPlatform.Infrastructure --startup-project src/OnlineLearningPlatform.Api --output-dir Persistence/Migrations
+
+# Apply pending migrations to the database named by ConnectionStrings:DefaultConnection
+dotnet ef database update --project src/OnlineLearningPlatform.Infrastructure --startup-project src/OnlineLearningPlatform.Api
+
+# Undo the most recent migration file (only if it has NOT been applied anywhere shared)
+dotnet ef migrations remove --project src/OnlineLearningPlatform.Infrastructure --startup-project src/OnlineLearningPlatform.Api
+```
+
+Production deployments will use a reviewed SQL script or migration bundle instead of `database update` (documented in Week 4).
+
+## Known risks
+
+- **Data Protection keys.** Identity's email-confirmation and password-reset tokens are protected with ASP.NET Core Data Protection keys. If the key ring is lost on restart, outstanding tokens stop working. The key ring will be persisted before deployment.
+
+`Courses.Price` is `decimal(10,2)` in GEL. SQL constraints reject negative prices and difficulty values outside the three supported levels. Existing courses migrate with duration `Self-paced`, price `0.00`, difficulty `Beginner`, and no prerequisites.

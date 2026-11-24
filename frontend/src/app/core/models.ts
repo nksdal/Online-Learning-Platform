@@ -1,0 +1,207 @@
+export type CourseDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+
+export interface Course {
+  id: string;
+  categoryId: string;
+  instructorUserId: string;
+  title: string;
+  summary: string;
+  description: string;
+  imageUrl: string | null;
+  duration: string;
+  price: number;
+  difficulty: CourseDifficulty;
+  prerequisites: string | null;
+  status: string;
+  rejectionReason?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  timeZoneId: string;
+  emailConfirmed: boolean;
+  profileImageUrl: string | null;
+  roles: string[];
+}
+
+export interface AdminUserSummary {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  roles: string[];
+}
+
+export interface AdminUserPage {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  users: AdminUserSummary[];
+}
+
+export interface Enrollment {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  courseSummary: string;
+  courseImageUrl: string | null;
+  courseStatus: string;
+  enrolledAtUtc: string;
+}
+
+export interface CourseProgress {
+  courseId: string;
+  courseTitle: string;
+  courseStatus: string;
+  totalLessons: number;
+  completedLessons: number;
+  completionPercentage: number;
+  lessons: LessonProgress[];
+}
+
+export interface LessonProgress {
+  lessonId: string;
+  title: string;
+  position: number;
+  isCompleted: boolean;
+  completedAtUtc?: string | null;
+}
+
+export interface Lesson {
+  id: string;
+  courseId: string;
+  title: string;
+  content: string;
+  position: number;
+  videoUrl?: string | null;
+}
+
+export interface LearningStreak {
+  timeZoneId: string;
+  currentStreakDays: number;
+  longestStreakDays: number;
+  learnedToday: boolean;
+  lastLearningDayLocal?: string | null;
+  recentLearningDays: string[];
+}
+
+export interface RecommendedCourse {
+  courseId: string;
+  title: string;
+  summary: string;
+  categoryId: string;
+  imageUrl: string | null;
+  enrollmentCount: number;
+  reason: string;
+}
+
+export interface Assignment {
+  id: string;
+  courseId: string;
+  title: string;
+  instructions: string;
+  dueAtUtc?: string | null;
+  maxAttempts: number;
+  maxScore: number;
+}
+
+export interface AssignmentSubmission {
+  id: string;
+  assignmentId: string;
+  attemptNumber: number;
+  text: string;
+  submittedAtUtc: string;
+  score?: number | null;
+  feedback?: string | null;
+  gradedAtUtc?: string | null;
+  attachmentUrl?: string | null;
+  attachmentFileName?: string | null;
+  attachmentContentType?: string | null;
+  attachmentSizeBytes?: number | null;
+}
+
+export interface AdminAnalyticsMonth {
+  monthStartUtc: string;
+  newUsers: number;
+  enrollments: number;
+  submissions: number;
+}
+
+export interface AdminAnalyticsCourse {
+  courseId: string;
+  title: string;
+  status: string;
+  enrollments: number;
+  completionPercentage: number;
+}
+
+export interface AdminAnalytics {
+  generatedAtUtc: string;
+  rangeDays: number;
+  rangeStartUtc: string;
+  totalUsers: number;
+  activeUsers: number;
+  students: number;
+  teachers: number;
+  totalCourses: number;
+  publishedCourses: number;
+  pendingCourses: number;
+  archivedCourses: number;
+  totalEnrollments: number;
+  completionPercentage: number;
+  newUsersInRange: number;
+  enrollmentsInRange: number;
+  submissionsInRange: number;
+  totalSubmissions: number;
+  gradedSubmissions: number;
+  averageGrade: number | null;
+  monthlyActivity: AdminAnalyticsMonth[];
+  topCourses: AdminAnalyticsCourse[];
+}
+
+export interface TeacherAssignmentSubmission extends AssignmentSubmission {
+  studentUserId: string;
+  gradedByUserId?: string | null;
+}
+
+export interface DiscussionPost {
+  id: string;
+  courseId: string;
+  authorUserId: string;
+  parentPostId?: string | null;
+  body: string;
+  isHidden: boolean;
+  moderationReason?: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+
+export interface DiscussionPostsPage {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  items: DiscussionPost[];
+}
+
+export interface TokenResponse {
+  accessToken: string;
+  expiresAtUtc: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
