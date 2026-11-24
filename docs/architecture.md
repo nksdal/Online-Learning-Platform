@@ -1,6 +1,6 @@
 # Architecture
 
-Status: **design document**. Sections describe agreed decisions; nothing here claims a feature is implemented. Implementation status lives in [checklist.md](checklist.md).
+სტატუსი: **დიზაინის დოკუმენტი**. სექციები აღწერს არქიტექტურულ გადაწყვეტილებებს; ეს დოკუმენტი არ ადასტურებს, რომ აღწერილი ფუნქციები უკვე იმპლემენტირებულია.
 
 ## 1. Layering
 

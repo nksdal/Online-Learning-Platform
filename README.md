@@ -1,77 +1,66 @@
 # OnlineLearningPlatform
 
-A secure, production-style online learning platform: students discover courses, enroll, work through lessons and assignments, and track progress; teachers create and grade; administrators moderate.
+OnlineLearningPlatform არის ონლაინ სწავლების პლატფორმის პროექტი. მისი მიზანია მოსწავლეებს მისცეს კურსებისა და გაკვეთილების შესწავლის, დავალებების შესრულებისა და პროგრესის თვალყურის დევნების საშუალება. მასწავლებლებს უნდა შეეძლოთ კურსებისა და სასწავლო მასალების მართვა, ხოლო ადმინისტრატორებს — მომხმარებლებისა და კურსების მოდერაცია.
 
-> **Status: Week 1 - backend foundation in progress.** This README describes only what exists today. Sections marked *(planned)* are filled in as the features are built. See [docs/checklist.md](docs/checklist.md) for the live progress list.
+> **მიმდინარე მდგომარეობა:** ეს `main` branch შეიცავს Backend-ის საწყის სტრუქტურასა და პროექტის საერთო build კონფიგურაციას. ქვემოთ აღწერილი მომხმარებლის შესაძლებლობები პროექტის მიზნობრივი ფუნქციებია და არა ყველა უკვე დასრულებული ფუნქციის დადასტურება.
 
-## Roles
+## მიზნობრივი როლები
 
-| Role | Can do (v1) |
+| როლი | დაგეგმილი შესაძლებლობები |
 |---|---|
-| **Student** | Register, verify email, browse published courses, enroll, study lessons, submit assignments, discuss, see grades. Default role for every new account. |
-| **Teacher** | Create and manage own courses and lessons, create assignments, grade submissions, moderate own course discussions. Assigned by an admin only. |
-| **Admin** | Manage users and roles, approve or reject courses, moderate content. The first admin is seeded from configuration. |
+| **Student (მოსწავლე)** | ანგარიშის შექმნა, კურსების ნახვა და ჩარიცხვა, გაკვეთილების გავლა, დავალებების ჩაბარება და შეფასებების ნახვა. |
+| **Teacher (მასწავლებელი)** | კურსებისა და გაკვეთილების შექმნა, დავალებების მომზადება და ნამუშევრების შეფასება. |
+| **Admin (ადმინისტრატორი)** | მომხმარებლებისა და როლების მართვა, კურსების განხილვა და შიგთავსის მოდერაცია. |
 
-Each user has exactly one role in v1.
+## ტექნოლოგიური არჩევანი
 
-## Technology
-
-| Area | Choice |
+| ნაწილი | ტექნოლოგია |
 |---|---|
-| Backend | .NET 10, ASP.NET Core Web API (controllers), C# |
-| Data | Entity Framework Core, Microsoft SQL Server |
-| Identity | ASP.NET Core Identity, JWT access tokens, rotating refresh tokens in an HttpOnly cookie *(planned)* |
-| Validation / logging | FluentValidation, Serilog *(planned)* |
-| API docs | Swagger / OpenAPI *(planned)* |
-| Tests | xUnit, Testcontainers with real SQL Server *(planned)* |
-| Containers / CI | Docker, Docker Compose, GitHub Actions *(planned)* |
-| Frontend | Angular + TypeScript, in `frontend/` *(Week 2)* |
+| Backend | .NET 10, ASP.NET Core Web API, C# |
+| მონაცემთა ბაზა | Microsoft SQL Server, Entity Framework Core |
+| ავთენტიფიკაცია | ASP.NET Core Identity და JWT (დაგეგმილი) |
+| შემოწმება და ლოგირება | FluentValidation და Serilog (დაგეგმილი) |
+| API დოკუმენტაცია | Swagger / OpenAPI (დაგეგმილი) |
+| Frontend | Angular და TypeScript (დაგეგმილი) |
+| ტესტები და კონტეინერები | xUnit, Docker, Docker Compose (დაგეგმილი) |
 
-## Repository layout
+## პროექტის სტრუქტურა
 
 ```text
 src/
-  OnlineLearningPlatform.Domain/          entities, enums, business rules (no dependencies)
-  OnlineLearningPlatform.Application/     use cases, DTOs, validators, interfaces
-  OnlineLearningPlatform.Infrastructure/  EF Core, Identity, email, file storage, background jobs
-  OnlineLearningPlatform.Api/             controllers, middleware, auth setup, Swagger
+  OnlineLearningPlatform.Domain/          დომენის ობიექტები და წესები
+  OnlineLearningPlatform.Application/     გამოყენების შემთხვევები, DTO-ები, ვალიდაცია და ინტერფეისები
+  OnlineLearningPlatform.Infrastructure/  მონაცემთა ბაზა და გარე ინტეგრაციები
+  OnlineLearningPlatform.Api/             API, middleware და ავთენტიფიკაციის კონფიგურაცია
 tests/
   OnlineLearningPlatform.UnitTests/
   OnlineLearningPlatform.IntegrationTests/
-frontend/    Angular app (Week 2)
-deploy/      production compose, reverse proxy, backup scripts (Week 4)
-docs/        architecture, database, endpoints, security notes
+frontend/                                  Angular აპლიკაცია (დაგეგმილი)
+deploy/                                    deployment რესურსები (დაგეგმილი)
+docs/                                      არქიტექტურისა და დიზაინის დოკუმენტები
 ```
 
-Dependencies point inward. See [docs/architecture.md](docs/architecture.md).
+დამოკიდებულებები მიმართულია შიდა ფენებისკენ. დეტალებისთვის იხილეთ [არქიტექტურის დოკუმენტი](docs/architecture.md).
 
-## Prerequisites
+## საჭირო ხელსაწყოები
 
-| Tool | Version used in development |
-|---|---|
-| .NET SDK | 10.0.401 (pinned in `global.json`) |
-| Docker Desktop | with the WSL2 backend |
-| Git | 2.50+ |
-| Node.js / npm | 24.x / 11.x (only needed for `frontend/`) |
+- .NET SDK 10.0.401 (`global.json`-ში მითითებული ვერსია)
+- Git
+- Docker Desktop WSL2 backend-ით და Node.js/npm — იმ ეტაპებისთვის, სადაც ეს ხელსაწყოები იქნება საჭირო
 
-## Getting started
+## Build და ტესტები
 
 ```powershell
-git clone https://github.com/<your-account>/OnlineLearningPlatform.git
-cd OnlineLearningPlatform
-dotnet --version     # should print 10.0.401
+git clone https://github.com/nksdal/Online-Learning-Platform.git
+cd Online-Learning-Platform
+dotnet --version
+dotnet tool restore
 dotnet build
+dotnet test
 ```
 
-Running the API, the database and Mailpit locally via Docker Compose is *(planned for Week 1, Step 5)*.
+`dotnet --version`-მა უნდა აჩვენოს `10.0.401`. კონკრეტული გაშვების ინსტრუქციები დაემატება, როცა API, მონაცემთა ბაზისა და Frontend-ის გაშვების გარემო ამ branch-ში იქნება მზად.
 
-## Documentation
+## უსაფრთხოება
 
-- [Architecture and design decisions](docs/architecture.md)
-- [Project checklist](docs/checklist.md)
-- Database design and ER diagram *(Week 1, Step 5)*
-- API endpoint inventory *(Week 1, Step 5)*
-
-## Security
-
-Never commit secrets. Local configuration goes in `.env` or .NET user-secrets, both git-ignored. Only `.env.example` (placeholders) is committed.
+არასოდეს შეინახოთ პაროლები, API key-ები ან სხვა საიდუმლო მნიშვნელობები Git-ში. გამოიყენეთ `.env` ან .NET User Secrets; `.env` იგნორირებულია. GitHub-ზე ატვირთული `.env.example` უნდა შეიცავდეს მხოლოდ ცარიელ მნიშვნელობებს ან მაგალითებს.
