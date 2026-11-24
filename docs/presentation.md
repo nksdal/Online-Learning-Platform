@@ -39,7 +39,7 @@ Open My Learning, enroll in a published course if needed, open a lesson, and mar
 
 ### 7. Architecture, safeguards, and next work (45 seconds)
 
-Summarize the Angular frontend, ASP.NET Core API, SQL Server persistence, role authorization, and automated tests. State clearly that local Compose is a development setup; public deployment still needs the production hardening and operational checks listed in the project checklist.
+Summarize the Angular frontend, ASP.NET Core API, SQL Server persistence, role authorization, and automated tests. State clearly that local Compose is a development setup; public deployment still needs the production hardening and operational checks described in `docs/security.md` and `docs/project-readiness.md`.
 
 ## Role-by-role demo walkthrough
 

@@ -29,7 +29,7 @@ This note records follow-up work after the baseline audit in `VERIFICATION_REPOR
 | Desktop width | PASS | At 1440px, document/body scroll widths matched the viewport. |
 | Public/protected route layout | PASS for overflow | 12 routes measured at 319, 360, 375, and 768px. Protected routes redirected to sign-in when opened without a session. |
 
-The authenticated role workflows are API-tested with role-specific test identities, but a live browser sign-in run for every role is still pending. Use the manual walkthrough in `docs/presentation.md` before presenting. This is also why the deployment checklist keeps the full live role journey as an open item.
+The authenticated role workflows are API-tested with role-specific test identities, but a live browser sign-in run for every role is still pending. Use the manual walkthrough in `docs/presentation.md` before presenting and before treating deployment readiness as verified.
 
 ## Presentation/deployment status
 
