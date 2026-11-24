@@ -33,4 +33,4 @@ The authenticated role workflows are API-tested with role-specific test identiti
 
 ## Presentation/deployment status
 
-Presentation material is prepared in `docs/presentation.md`. Deployment is not yet cleared: finish the Week 4 security/configuration, production Docker, backup/restore, and deployment documentation items in `docs/checklist.md`, then run the manual role walkthrough against the intended release configuration. No deployment was performed.
+Presentation material is prepared in `docs/presentation.md`. Deployment is not yet cleared: complete the production security and configuration work, prepare production Docker and a backup/restore plan, and run the manual role walkthrough against the intended release configuration. No deployment was performed.

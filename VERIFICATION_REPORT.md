@@ -259,7 +259,7 @@ The repository is split into Domain, Application, Infrastructure, Api, UnitTests
 
 Test inventory: 21 .NET unit tests pass; 52 integration tests include 49 pass and 3 failures; 3 frontend tests pass. No coverage percentage is available. Integration tests use EF InMemory, so SQL transaction/constraint behavior is not covered by those workflows.
 
-README.md, docs/architecture.md, docs/database.md, docs/endpoints.md and docs/checklist.md provide useful design/setup context. Accuracy gaps:
+README.md, docs/architecture.md, docs/database.md, docs/endpoints.md and docs/checklist.md (which has since been removed from the repository) provided design/setup context at the time of this historical review. Accuracy gaps:
 - README.md line 177 says maxScore defaults to 100, but backend and SQL constraints cap it at 10.0.
 - README seed description says 9 published courses / 45 lessons / 18 assignments, while the current database has additional records. Clarify that these are initial demo-seed counts.
 
