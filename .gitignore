@@ -486,6 +486,7 @@ $RECYCLE.BIN/
 .env
 .env.*
 !.env.example
+!.env.production.example
 appsettings.Local.json
 *.pfx
 *.key
