@@ -1,0 +1,189 @@
+name: nikladori-production
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env.production}
+    volumes:
+      - ${SQLSERVER_DATA_DIR:?Set SQLSERVER_DATA_DIR in .env.production}:/var/opt/mssql
+      - ${SQLSERVER_TLS_CERT_PATH:?Set SQLSERVER_TLS_CERT_PATH in .env.production}:/var/opt/mssql/certs/db-fullchain.pem:ro
+      - ${SQLSERVER_TLS_KEY_PATH:?Set SQLSERVER_TLS_KEY_PATH in .env.production}:/var/opt/mssql/certs/db-private-key.pem:ro
+      - ./mssql.conf:/var/opt/mssql/mssql.conf:ro
+      - ${SQL_BACKUP_DIR:?Set SQL_BACKUP_DIR in .env.production}:/var/opt/mssql/backup
+    networks:
+      database:
+        aliases:
+          - ${SQLSERVER_HOSTNAME:?Set SQLSERVER_HOSTNAME in .env.production}
+    healthcheck:
+      test:
+        - CMD
+        - /opt/mssql-tools18/bin/sqlcmd
+        - -S
+        - localhost
+        - -U
+        - sa
+        - -P
+        - ${MSSQL_SA_PASSWORD}
+        - -C
+        - -b
+        - -Q
+        - SELECT 1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 45s
+    restart: unless-stopped
+
+  db-provision:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd -S ${SQLSERVER_HOSTNAME},1433 -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b
+        -v AppPassword="$${DB_APP_PASSWORD}" MigratorPassword="$${DB_MIGRATOR_PASSWORD}"
+        -i /scripts/provision-users.sql
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env.production}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in .env.production}
+      DB_MIGRATOR_PASSWORD: ${DB_MIGRATOR_PASSWORD:?Set DB_MIGRATOR_PASSWORD in .env.production}
+    volumes:
+      - ./provision-users.sql:/scripts/provision-users.sql:ro
+    networks:
+      - database
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: build
+    command:
+      - dotnet
+      - tool
+      - run
+      - dotnet-ef
+      - --
+      - database
+      - update
+      - --project
+      - src/OnlineLearningPlatform.Infrastructure/OnlineLearningPlatform.Infrastructure.csproj
+      - --startup-project
+      - src/OnlineLearningPlatform.Api/OnlineLearningPlatform.Api.csproj
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Server=${SQLSERVER_HOSTNAME},1433;Database=OnlineLearningPlatform;User ID=OnlineLearningPlatformMigrator;Password=${DB_MIGRATOR_PASSWORD};Encrypt=True;TrustServerCertificate=False
+      Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env.production}
+    networks:
+      - database
+    depends_on:
+      db-provision:
+        condition: service_completed_successfully
+    restart: "no"
+
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+      Swagger__Enabled: "false"
+      DemoCatalog__Enabled: "false"
+      ConnectionStrings__DefaultConnection: Server=${SQLSERVER_HOSTNAME},1433;Database=OnlineLearningPlatform;User ID=OnlineLearningPlatformApp;Password=${DB_APP_PASSWORD};Encrypt=True;TrustServerCertificate=False
+      Authentication__Jwt__Issuer: https://${SITE_HOST:?Set SITE_HOST in .env.production}
+      Authentication__Jwt__Audience: OnlineLearningPlatform.AngularClient
+      Authentication__Jwt__AccessTokenMinutes: 15
+      Authentication__Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env.production}
+      BootstrapAdmin__Email: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BootstrapAdmin__Password: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      Email__Smtp__Host: ${EMAIL_HOST:?Set EMAIL_HOST in .env.production}
+      Email__Smtp__Port: ${EMAIL_PORT:-465}
+      Email__Smtp__Secure: "true"
+      Email__Smtp__UserName: ${EMAIL_USER:?Set EMAIL_USER in .env.production}
+      Email__Smtp__Password: ${EMAIL_PASS:?Set EMAIL_PASS in .env.production}
+      Email__From: ${EMAIL_FROM:?Set EMAIL_FROM in .env.production}
+      Email__AppUrl: ${APP_URL:?Set APP_URL in .env.production}
+      Cors__AllowedOrigins__0: ${FRONTEND_ORIGIN:?Set FRONTEND_ORIGIN in .env.production}
+      AllowedHosts: ${SITE_HOST:?Set SITE_HOST in .env.production}
+      ForwardedHeaders__KnownProxies__0: ${CADDY_PROXY_IP:?Set CADDY_PROXY_IP in .env.production}
+      Cloudinary__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      Cloudinary__ApiKey: ${CLOUDINARY_API_KEY:-}
+      Cloudinary__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+    volumes:
+      - dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+    networks:
+      - database
+      - frontdoor
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8080/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile.production
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST in .env.production}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      frontdoor:
+        ipv4_address: ${CADDY_PROXY_IP:?Set CADDY_PROXY_IP in .env.production}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backup:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    profiles: ["operations"]
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - >-
+        set -euo pipefail;
+        backup_file="/var/opt/mssql/backup/OnlineLearningPlatform-$$(date -u +%Y%m%dT%H%M%SZ).bak";
+        /opt/mssql-tools18/bin/sqlcmd -S ${SQLSERVER_HOSTNAME},1433 -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b
+        -Q "BACKUP DATABASE [OnlineLearningPlatform] TO DISK = N'$$backup_file' WITH CHECKSUM, INIT";
+        echo "Created $$backup_file"
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env.production}
+    networks:
+      - database
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
+
+networks:
+  database:
+    driver: bridge
+    internal: true
+  frontdoor:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: ${PROXY_NETWORK_SUBNET:?Set PROXY_NETWORK_SUBNET in .env.production}
+
+volumes:
+  dataprotection-keys:
+  caddy-data:
+  caddy-config:

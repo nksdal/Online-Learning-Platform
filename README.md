@@ -91,6 +91,7 @@ npm start
 - [პრეზენტაციის გეგმა და როლების დემო-სცენარი](docs/presentation.md)
 - [პროექტის მზადყოფნისა და შემოწმების ანგარიში](docs/project-readiness.md)
 - [უსაფრთხოება და deployment-ის მოთხოვნები](docs/security.md)
+- [DigitalOcean Droplet-ზე განთავსება SQL Server Express-ით](deploy/production/README.md)
 
 ## უსაფრთხოება და deployment
 
